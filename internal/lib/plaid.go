@@ -2,6 +2,15 @@ package lib
 
 import "fmt"
 
-func Plaid() {
-	fmt.Println("plaid")
+type PlaidClient struct {
+	CLIENT_ID string
+	SECRET    string
+}
+
+func NewPlaidClient(id, secret string) PlaidClient {
+	return PlaidClient{CLIENT_ID: id, SECRET: secret}
+}
+
+func (pc *PlaidClient) GetPastTransactions() {
+	fmt.Println("getting past transactions")
 }
