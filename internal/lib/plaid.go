@@ -1,30 +1,33 @@
 package lib
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/plaid/plaid-go/v43/plaid"
+)
 
 type PlaidClient struct {
-	CLIENT_ID string
-	SECRET    string
+	client *plaid.APIClient
 }
 
 func NewPlaidClient(id, secret string) PlaidClient {
-	return PlaidClient{CLIENT_ID: id, SECRET: secret}
+	configuration := plaid.NewConfiguration()
+	configuration.AddDefaultHeader("PLAID-CLIENT-ID", id) 
+	configuration.AddDefaultHeader("PLAID-SECRET", secret) 
+	configuration.UseEnvironment(plaid.Sandbox)
+	client := plaid.NewAPIClient(configuration)
+	return PlaidClient{client}
 }
 
 func (pc *PlaidClient) GetNewTransactions() {
-	pc.getAllTransactions()
+	pc.getAllRecentTransactions()
 	fmt.Println("getting past transactions")
 }
 
-func (pc *PlaidClient) getAllTransactions() {
+func (pc *PlaidClient) getAllRecentTransactions() {
 	// request from plaid api
 	fmt.Println("getting all transactions")
-	// filter for new transactions
-	filterTransactions()
 }
 
 func filterTransactions() {
 	// find all new transactions
 }
-
-
