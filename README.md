@@ -56,7 +56,7 @@ Use /paid to mark these resolved!
 ### Workflow
 
 #### Posting a bill
-1. Server runs every saturday to check for any new bills 
+1. runs cronjob every saturday to check for any new bills 
 2. Request for all transactions in the past 1-2 weeks from plaid api
 3. Find all transactions that are bills (cox, electric, gas, water, rent)
 4. Compare those transactions with what we have in db to see if any of them have already been accounted for 
@@ -71,7 +71,7 @@ Use /paid to mark these resolved!
 3. Server marks the bill as paid in the db
 
 #### End of month summary
-1. Server runs every saturday
+1. cron job runs every saturday
 2. Checks database for all unpaid bills 
 3. Creates a formatted message showing which bills haven't been paid by who
 4. Have slack bot post discord message to discord channel
