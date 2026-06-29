@@ -23,10 +23,13 @@ func NewPlaidClient(id, secret string) PlaidClient {
 func (pc *PlaidClient) GetNewTransactions() {
 }
 
-func (pc *PlaidClient) GetAccessToken(userName string) {
-	user := plaid.LinkTokenCreateRequestUser{
-		ClientUserId: userName,
-	}
+type HostedLink struct {
+	linkToken string
+	url       string
+	requestId string
+}
+
+func (pc *PlaidClient) GetHostedLink(userName string) (HostedLink, error) {
 	transactions := plaid.LinkTokenTransactions{}
 	depository := plaid.DepositoryFilter{
 		AccountSubtypes: []plaid.DepositoryAccountSubtype{
@@ -45,24 +48,27 @@ func (pc *PlaidClient) GetAccessToken(userName string) {
 		"en",
 		[]plaid.CountryCode{plaid.COUNTRYCODE_US},
 	)
+	hosted := plaid.NewLinkTokenCreateHostedLink()
+
 	request.SetProducts([]plaid.Products{plaid.PRODUCTS_TRANSACTIONS})
 	request.SetTransactions(transactions)
-	request.SetWebhook("https://sample-web-hook.com")
-	request.SetRedirectUri("https://domainname.com/oauth-page.html")
+	request.SetWebhook("")
 	request.SetAccountFilters(accountFilters)
+	request.SetHostedLink(*hosted)
 
 	ctx := context.Background()
 	linkTokenCreateResp, _, err := pc.client.PlaidApi.LinkTokenCreate(ctx).LinkTokenCreateRequest(*request).Execute()
 	if err != nil {
-		panic(err)
+		return HostedLink{}, err
 	}
+
 	linkToken := linkTokenCreateResp.GetLinkToken()
+	hostedLink := linkTokenCreateResp.GetHostedLinkUrl()
+	requestId := linkTokenCreateResp.GetRequestId()
 
-	exchangePublicTokenReq := plaid.NewItemPublicTokenExchangeRequest(linkToken)
-	exchangePublicTokenResp, _, err := pc.client.PlaidApi.ItemPublicTokenExchange(ctx).ItemPublicTokenExchangeRequest(
-		*exchangePublicTokenReq,
-	).Execute()
-	accessToken := exchangePublicTokenResp.GetAccessToken()
-
-	// TODO: Save access token to db
+	return HostedLink{
+		linkToken: linkToken,
+		url:       hostedLink,
+		requestId: requestId,
+	}, nil
 }
