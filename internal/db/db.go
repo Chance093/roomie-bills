@@ -81,7 +81,16 @@ func initDB() (*sql.DB, error) {
   `
 	_, err = db.Exec(createAccountTypes)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
+	}
+
+	createRoomies := `
+	INSERT OR IGNORE INTO roomies (name)
+	VALUES ("Chance"), ("Kane"), ("Alex"), ("Madison");
+	`
+	_, err = db.Exec(createRoomies)
+	if err != nil {
+		return nil, err
 	}
 
 	return db, nil
