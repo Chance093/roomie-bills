@@ -17,17 +17,9 @@ func main() {
   plaidClientId := os.Getenv("PLAID_CLIENT_ID")
   plaidSecretKey := os.Getenv("PLAID_SANDBOX_SECRET")
 
-	// get transactions from plaid
 	pc := lib.NewPlaidClient(plaidClientId, plaidSecretKey)
-	pc.GetNewTransactions()
 
-	// get transactions from db
+	// grab name of roomie from input
 
-	// get unaccounted transactions (what is not in db yet)
-
-	// split bill 4 ways
-
-	// send off discord message
-
-	// save new transactions to db
+	// create plaid link and send to roomie (either sms or url that is pasted to discord)
 }
