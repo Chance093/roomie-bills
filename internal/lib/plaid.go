@@ -24,12 +24,12 @@ func (pc *PlaidClient) GetNewTransactions() {
 }
 
 type HostedLink struct {
-	linkToken string
-	url       string
-	requestId string
+	LinkToken string
+	Url       string
+	RequestId string
 }
 
-func (pc *PlaidClient) GetHostedLink(userName string) (HostedLink, error) {
+func (pc *PlaidClient) GetHostedLink() (HostedLink, error) {
 	transactions := plaid.LinkTokenTransactions{}
 	depository := plaid.DepositoryFilter{
 		AccountSubtypes: []plaid.DepositoryAccountSubtype{
@@ -67,8 +67,8 @@ func (pc *PlaidClient) GetHostedLink(userName string) (HostedLink, error) {
 	requestId := linkTokenCreateResp.GetRequestId()
 
 	return HostedLink{
-		linkToken: linkToken,
-		url:       hostedLink,
-		requestId: requestId,
+		LinkToken: linkToken,
+		Url:       hostedLink,
+		RequestId: requestId,
 	}, nil
 }

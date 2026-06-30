@@ -35,9 +35,10 @@ func initDB() (*sql.DB, error) {
 
 	CREATE TABLE IF NOT EXISTS banks (
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-		plaid_id TEXT NOT NULL UNIQUE,
-		name TEXT NOT NULL,
-		access_token TEXT NOT NULL UNIQUE,
+		plaid_id TEXT UNIQUE,
+		link_token TEXT NOT NULL UNIQUE,
+		name TEXT,
+		access_token TEXT UNIQUE,
 		roomie_id INTEGER NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -94,4 +95,10 @@ func initDB() (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func (db *DB) AddHostedLink(roomie, linkToken string) {
+	// search roomie name in db and get roomie id 
+
+	// create bank record which saves roomie id and linkToken 
 }
