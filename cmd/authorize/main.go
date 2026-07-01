@@ -2,13 +2,17 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/Chance093/roomie-bills/internal/db"
 	"github.com/Chance093/roomie-bills/internal/lib"
 	"github.com/joho/godotenv"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 func main() {
@@ -20,27 +24,66 @@ func main() {
 	plaidClientId := os.Getenv("PLAID_CLIENT_ID")
 	plaidSecretKey := os.Getenv("PLAID_SANDBOX_SECRET")
 
-	// get name of roomie
-	scanner := bufio.NewScanner(os.Stdin)
-	fmt.Println("Who is this link for?")
+	// get roomie name
+	roomie, err := getRoomieName(os.Stdin)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// get hosted link from plaid
+	pc := lib.NewPlaidClient(plaidClientId, plaidSecretKey)
+	hostedLink, err := pc.GetHostedLink(roomie)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// save hosted link info to db
+	db := db.NewDB()
+	defer db.Close()
+	if err := db.AddHostedLink(roomie, hostedLink.LinkToken); err != nil {
+		log.Fatal(err)
+	}
+
+	// send url to discord channel
+}
+
+func getRoomieName(stdin *os.File) (string, error) {
+	scanner := bufio.NewScanner(stdin)
+	fmt.Println("Which roomie is this hosted link for?")
 	if scanner.Scan() {
-		roomie := scanner.Text()
-
-		// get hosted link from plaid
-		pc := lib.NewPlaidClient(plaidClientId, plaidSecretKey)
-		hostedLink, err := pc.GetHostedLink(roomie)
+		raw := scanner.Text()
+		roomie, err := parseRoomieName(raw)
 		if err != nil {
-			log.Fatal(err)
+			return "", err
 		}
+		fmt.Println("") // new line to split up stdout
 
-		// save hosted link info to db
-		db := db.NewDB()
-		db.AddHostedLink(roomie, hostedLink.LinkToken) 
-
-		// send url to discord channel
+		return roomie, nil
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Println("Error reading input:", err)
+		return "", fmt.Errorf("Error reading input: %w", err)
 	}
+
+	return "", errors.New("This part of function unreachable")
+}
+
+// TODO: Write tests for this
+func parseRoomieName(roomie string) (string, error) {
+	lower := strings.ToLower(roomie)
+
+	if !isRoomieValid(lower) {
+		return "", errors.New("Roomie does not exist. Please check spelling.")
+	}
+
+	return cases.Title(language.English).String(lower), nil
+}
+
+// TODO: Write tests for this
+func isRoomieValid(roomie string) bool {
+	if roomie != "chance" && roomie != "kane" && roomie != "alex" && roomie != "madison" {
+		return false
+	}
+
+	return true
 }

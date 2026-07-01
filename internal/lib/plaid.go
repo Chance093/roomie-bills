@@ -2,6 +2,7 @@ package lib
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/plaid/plaid-go/v43/plaid"
 )
@@ -68,6 +69,8 @@ func (pc *PlaidClient) GetHostedLink(roomie string) (HostedLink, error) {
 	linkToken := linkTokenCreateResp.GetLinkToken()
 	hostedLink := linkTokenCreateResp.GetHostedLinkUrl()
 	requestId := linkTokenCreateResp.GetRequestId()
+
+	fmt.Printf("Hosted link obtained: %s\n", hostedLink)
 
 	return HostedLink{
 		LinkToken: linkToken,

@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -25,7 +26,6 @@ func initDB() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
 
 	sqlStmt := `
 	CREATE TABLE IF NOT EXISTS roomies (
@@ -99,8 +99,21 @@ func initDB() (*sql.DB, error) {
 	return db, nil
 }
 
-func (db *DB) AddHostedLink(roomie, linkToken string) {
+func (db *DB) AddHostedLink(roomie, linkToken string) error {
 	// search roomie name in db and get roomie id
+	sqlQuery := `SELECT id FROM roomies WHERE name = ?;`
+	var roomieId int
+	if err := db.QueryRow(sqlQuery, roomie).Scan(&roomieId); err != nil {
+		return fmt.Errorf("Error querying roomie id and scanning row: %w", err)
+	}
 
 	// create bank record which saves roomie id and linkToken
+	sqlInsert := `INSERT INTO banks(link_token, roomie_id) VALUES(?, ?);`
+	if _, err := db.Exec(sqlInsert, linkToken, roomieId); err != nil {
+		return fmt.Errorf("Error inserting roomie id and link token into banks table: %w", err)
+	}
+
+	fmt.Println("Link token and hosted link saved to db")
+
+	return nil
 }
