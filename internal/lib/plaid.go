@@ -29,8 +29,10 @@ type HostedLink struct {
 	RequestId string
 }
 
-func (pc *PlaidClient) GetHostedLink() (HostedLink, error) {
-	transactions := plaid.LinkTokenTransactions{}
+func (pc *PlaidClient) GetHostedLink(roomie string) (HostedLink, error) {
+	user := plaid.LinkTokenCreateRequestUser{
+		ClientUserId: roomie,
+	}
 	depository := plaid.DepositoryFilter{
 		AccountSubtypes: []plaid.DepositoryAccountSubtype{
 			plaid.DEPOSITORYACCOUNTSUBTYPE_CHECKING,
@@ -48,13 +50,14 @@ func (pc *PlaidClient) GetHostedLink() (HostedLink, error) {
 		"en",
 		[]plaid.CountryCode{plaid.COUNTRYCODE_US},
 	)
-	hosted := plaid.NewLinkTokenCreateHostedLink()
+	hosted := plaid.LinkTokenCreateHostedLink{}
 
+	// TODO: Set webhook url here
 	request.SetProducts([]plaid.Products{plaid.PRODUCTS_TRANSACTIONS})
-	request.SetTransactions(transactions)
-	request.SetWebhook("")
+	request.SetLinkCustomizationName("default")
 	request.SetAccountFilters(accountFilters)
-	request.SetHostedLink(*hosted)
+	request.SetHostedLink(hosted)
+	request.SetUser(user)
 
 	ctx := context.Background()
 	linkTokenCreateResp, _, err := pc.client.PlaidApi.LinkTokenCreate(ctx).LinkTokenCreateRequest(*request).Execute()
