@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	// "github.com/Chance093/roomie-bills/internal/db"
+	"github.com/Chance093/roomie-bills/internal/db"
 	"github.com/Chance093/roomie-bills/internal/lib"
 	"github.com/joho/godotenv"
 )
@@ -33,13 +33,9 @@ func main() {
 			log.Fatal(err)
 		}
 
-		fmt.Printf("Roomie: %s\n", roomie)
-		fmt.Printf("Link Token: %s\n", hostedLink.LinkToken)
-		fmt.Printf("Hosted Link: %s\n", hostedLink.Url)
-
 		// save hosted link info to db
-		// db := db.NewDB()
-		// db.AddHostedLink(roomie, hostedLink.LinkToken) 
+		db := db.NewDB()
+		db.AddHostedLink(roomie, hostedLink.LinkToken) 
 
 		// send url to discord channel
 	}

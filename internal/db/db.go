@@ -3,6 +3,8 @@ package db
 import (
 	"database/sql"
 	"log"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type DB struct {
@@ -31,7 +33,7 @@ func initDB() (*sql.DB, error) {
 		name TEXT NOT NULL UNIQUE,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	)
+	);
 
 	CREATE TABLE IF NOT EXISTS banks (
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -42,11 +44,11 @@ func initDB() (*sql.DB, error) {
 		roomie_id INTEGER NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	)
+	);
 
   CREATE TABLE IF NOT EXISTS account_types (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE
+    name TEXT NOT NULL UNIQUE,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -59,7 +61,7 @@ func initDB() (*sql.DB, error) {
 		bank_id INTEGER NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	)
+	);
 
 	CREATE TABLE IF NOT EXISTS bills (
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -98,7 +100,7 @@ func initDB() (*sql.DB, error) {
 }
 
 func (db *DB) AddHostedLink(roomie, linkToken string) {
-	// search roomie name in db and get roomie id 
+	// search roomie name in db and get roomie id
 
-	// create bank record which saves roomie id and linkToken 
+	// create bank record which saves roomie id and linkToken
 }
