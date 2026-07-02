@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/Chance093/roomie-bills/internal/db"
 	"github.com/Chance093/roomie-bills/internal/lib"
+	"github.com/Chance093/roomie-bills/internal/utils"
 	"github.com/joho/godotenv"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 func main() {
@@ -68,7 +66,7 @@ func getRoomieName(stdin *os.File) (string, error) {
 	fmt.Println("Which roomie is this hosted link for?")
 	if scanner.Scan() {
 		raw := scanner.Text()
-		roomie, err := parseRoomieName(raw)
+		roomie, err := utils.ParseRoomieName(raw)
 		if err != nil {
 			return "", err
 		}
@@ -84,22 +82,3 @@ func getRoomieName(stdin *os.File) (string, error) {
 	return "", errors.New("This part of function unreachable")
 }
 
-// TODO: Write tests for this
-func parseRoomieName(roomie string) (string, error) {
-	lower := strings.ToLower(roomie)
-
-	if !isRoomieValid(lower) {
-		return "", errors.New("Roomie does not exist. Please check spelling.")
-	}
-
-	return cases.Title(language.English).String(lower), nil
-}
-
-// TODO: Write tests for this
-func isRoomieValid(roomie string) bool {
-	if roomie != "chance" && roomie != "kane" && roomie != "alex" && roomie != "madison" {
-		return false
-	}
-
-	return true
-}
