@@ -23,6 +23,8 @@ func main() {
 	}
 	plaidClientId := os.Getenv("PLAID_CLIENT_ID")
 	plaidSecretKey := os.Getenv("PLAID_SANDBOX_SECRET")
+	discordToken := os.Getenv("DISCORD_TOKEN")
+	channelId := os.Getenv("DISCORD_CHANNEL_ID")
 
 	// get roomie name
 	roomie, err := getRoomieName(os.Stdin)
@@ -45,6 +47,15 @@ func main() {
 	}
 
 	// send url to discord channel
+	dc, err := lib.NewDiscordClient(discordToken, channelId)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := dc.SendHostedLink(roomie, hostedLink.Url); err != nil {
+		// TODO: delete db entry if discord fails
+		log.Fatal(err)
+	}
 }
 
 func getRoomieName(stdin *os.File) (string, error) {
