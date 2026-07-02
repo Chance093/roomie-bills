@@ -117,3 +117,15 @@ func (db *DB) AddHostedLink(roomie, linkToken string) error {
 
 	return nil
 }
+
+func (db *DB) DeleteBankRecord(linkToken string) error {
+	sqlStatement := `DELETE FROM banks WHERE link_token = ?;`
+	_, err := db.Exec(sqlStatement, linkToken)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("deleted bank record")
+
+	return nil
+}

@@ -53,7 +53,12 @@ func main() {
 	}
 
 	if err := dc.SendHostedLink(roomie, hostedLink.Url); err != nil {
-		// TODO: delete db entry if discord fails
+		fmt.Println("Failed to send host link. Deleting bank record from db...")
+
+		if err := db.DeleteBankRecord(hostedLink.LinkToken); err != nil {
+			log.Fatal(err)
+		}
+
 		log.Fatal(err)
 	}
 }
