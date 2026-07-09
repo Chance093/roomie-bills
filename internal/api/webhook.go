@@ -26,6 +26,7 @@ func plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// verify jwt in header
+	ok, err := verifyWebhook()
 
 	// validate expected payload
 	var notif WebhookNotif

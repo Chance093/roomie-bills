@@ -9,6 +9,7 @@ import (
 
 type PlaidClient struct {
 	client *plaid.APIClient
+	ctx    context.Context
 }
 
 func NewPlaidClient(id, secret string) PlaidClient {
@@ -17,8 +18,9 @@ func NewPlaidClient(id, secret string) PlaidClient {
 	configuration.AddDefaultHeader("PLAID-SECRET", secret)
 	configuration.UseEnvironment(plaid.Sandbox)
 	client := plaid.NewAPIClient(configuration)
+	ctx := context.Background()
 
-	return PlaidClient{client}
+	return PlaidClient{client, ctx}
 }
 
 func (pc *PlaidClient) GetNewTransactions() {
@@ -60,8 +62,7 @@ func (pc *PlaidClient) GetHostedLink(roomie string) (HostedLink, error) {
 	request.SetHostedLink(hosted)
 	request.SetUser(user)
 
-	ctx := context.Background()
-	linkTokenCreateResp, _, err := pc.client.PlaidApi.LinkTokenCreate(ctx).LinkTokenCreateRequest(*request).Execute()
+	linkTokenCreateResp, _, err := pc.client.PlaidApi.LinkTokenCreate(pc.ctx).LinkTokenCreateRequest(*request).Execute()
 	if err != nil {
 		return HostedLink{}, err
 	}
@@ -77,4 +78,24 @@ func (pc *PlaidClient) GetHostedLink(roomie string) (HostedLink, error) {
 		Url:       hostedLink,
 		RequestId: requestId,
 	}, nil
+}
+
+var jwkCache = map[string]*plaid.JWKPublicKey{}
+
+func (pc *PlaidClient) GetJWK(kid string) (*plaid.JWKPublicKey, error) {
+	if key, ok := jwkCache[kid]; ok && key != nil {
+		return key, nil
+	}
+	req := *plaid.NewWebhookVerificationKeyGetRequest(kid)
+	resp, _, err := pc.client.PlaidApi.WebhookVerificationKeyGet(pc.ctx).
+		WebhookVerificationKeyGetRequest(req).
+		Execute()
+	if err != nil {
+		return nil, err
+	}
+	key := resp.GetKey()
+	if key.Kid == kid {
+		jwkCache[kid] = &key
+	}
+	return &key, nil
 }
