@@ -22,7 +22,7 @@ func NewServer(port string, db *db.DB) *Server {
 		DB: db,
 	}
 
-	s.Router.HandleFunc("GET /webhook/plaid", exampleHandler)
+	s.Router.HandleFunc("POST /webhooks/plaid", plaidWebhookHandler)
 	s.Router.HandleFunc("PUT /bills/{id}", exampleHandler)
 
 	return s
