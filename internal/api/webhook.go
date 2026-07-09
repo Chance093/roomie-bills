@@ -21,7 +21,8 @@ func plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	// validate ip
 	ip := r.RemoteAddr
 	if ip != validIPs[0] && ip != validIPs[1] && ip != validIPs[2] && ip != validIPs[3] {
-		// do some error handling
+		w.WriteHeader(http.StatusForbidden)
+		return
 	}
 
 	// verify jwt in header
@@ -29,20 +30,22 @@ func plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	// validate expected payload
 	var notif WebhookNotif
 	if err := json.NewDecoder(r.Body).Decode(&notif); err != nil {
-		// do some error handling here
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		return
 	}
 	defer r.Body.Close()
-
-	// implement Retry-After header in case of 429
 
 	// grab public token from payload
 	publicToken := notif.PublicTokens[0]
 	if publicToken == "" {
-		// do some error handling here
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	// start background task to get access token
+
 	// send back 200
+	w.WriteHeader(http.StatusOK)
 }
 
 // background task
