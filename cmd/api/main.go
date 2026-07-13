@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/Chance093/roomie-bills/internal/api"
+	"github.com/Chance093/roomie-bills/internal/cfg"
 	"github.com/Chance093/roomie-bills/internal/db"
 )
 
@@ -16,7 +17,13 @@ func main() {
 	db := db.NewDB()
 	defer db.Close()
 
-	s := api.NewServer(port, db)
+	// get env variables
+	env, err := cfg.GetEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	s := api.NewServer(port, db, env)
 	fmt.Printf("Serving on port :%s\n", port)
 	log.Fatal(http.ListenAndServe(":"+port, s.Router))
 }

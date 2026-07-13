@@ -12,10 +12,10 @@ type PlaidClient struct {
 	ctx    context.Context
 }
 
-func NewPlaidClient(id, secret string) PlaidClient {
+func NewPlaidClient(env map[string]string) PlaidClient {
 	configuration := plaid.NewConfiguration()
-	configuration.AddDefaultHeader("PLAID-CLIENT-ID", id)
-	configuration.AddDefaultHeader("PLAID-SECRET", secret)
+	configuration.AddDefaultHeader("PLAID-CLIENT-ID", env["PLAID_CLIENT_ID"])
+	configuration.AddDefaultHeader("PLAID-SECRET", env["PLAID_SANDBOX_SECRET"])
 	configuration.UseEnvironment(plaid.Sandbox)
 	client := plaid.NewAPIClient(configuration)
 	ctx := context.Background()

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+
+	"github.com/Chance093/roomie-bills/internal/lib"
 )
 
 type WebhookNotif struct {
@@ -16,7 +18,7 @@ type WebhookNotif struct {
 	Environment   string   `json:"environment"`
 }
 
-func plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	// get payload, header, and ip for validation
 	ip := r.RemoteAddr
 	raw, err := io.ReadAll(r.Body)
@@ -27,7 +29,8 @@ func plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	// validate jwt, ip, and payload hash
-	ok, err := verifyWebhook(raw, ip, r.Header)
+	pc := lib.NewPlaidClient(s.env)
+	ok, err := verifyWebhook(raw, ip, r.Header, pc)
 	// WARN: SHOULD THESE BE IN SAME IF STATEMENT?
 	if err != nil || !ok {
 		w.WriteHeader(http.StatusForbidden)

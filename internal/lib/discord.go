@@ -11,12 +11,12 @@ type DiscordClient struct {
 	channelId string
 }
 
-func NewDiscordClient(token, channelId string) (DiscordClient, error) {
-	client, err := discordgo.New("Bot " + token)
+func NewDiscordClient(env map[string]string) (DiscordClient, error) {
+	client, err := discordgo.New("Bot " + env["DISCORD_TOKEN"])
 	if err != nil {
 		return DiscordClient{}, err
 	}
-	return DiscordClient{client: client, channelId: channelId}, nil
+	return DiscordClient{client: client, channelId: env["DISCORD_CHANNEL_ID"]}, nil
 }
 
 func (dc *DiscordClient) PostMessage(message string) {

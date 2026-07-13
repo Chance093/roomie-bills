@@ -7,22 +7,18 @@ import (
 	"log"
 	"os"
 
+	"github.com/Chance093/roomie-bills/internal/cfg"
 	"github.com/Chance093/roomie-bills/internal/db"
 	"github.com/Chance093/roomie-bills/internal/lib"
 	"github.com/Chance093/roomie-bills/internal/utils"
-	"github.com/joho/godotenv"
 )
 
 func main() {
 	// get env vars
-	err := godotenv.Load()
+	env, err := cfg.GetEnv()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatal(err)
 	}
-	plaidClientId := os.Getenv("PLAID_CLIENT_ID")
-	plaidSecretKey := os.Getenv("PLAID_SANDBOX_SECRET")
-	discordToken := os.Getenv("DISCORD_TOKEN")
-	channelId := os.Getenv("DISCORD_CHANNEL_ID")
 
 	// get roomie name
 	roomie, err := getRoomieName(os.Stdin)
@@ -31,7 +27,7 @@ func main() {
 	}
 
 	// get hosted link from plaid
-	pc := lib.NewPlaidClient(plaidClientId, plaidSecretKey)
+	pc := lib.NewPlaidClient(env)
 	hostedLink, err := pc.GetHostedLink(roomie)
 	if err != nil {
 		log.Fatal(err)
@@ -45,7 +41,7 @@ func main() {
 	}
 
 	// send url to discord channel
-	dc, err := lib.NewDiscordClient(discordToken, channelId)
+	dc, err := lib.NewDiscordClient(env)
 	if err != nil {
 		log.Fatal(err)
 	}
