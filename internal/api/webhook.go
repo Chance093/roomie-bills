@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 )
 
@@ -15,26 +16,30 @@ type WebhookNotif struct {
 	Environment   string   `json:"environment"`
 }
 
-var validIPs = [4]string{"52.21.26.131", "52.21.47.157", "52.41.247.19", "52.88.82.239"}
-
 func plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
-	// validate ip
+	// get payload, header, and ip for validation
 	ip := r.RemoteAddr
-	if ip != validIPs[0] && ip != validIPs[1] && ip != validIPs[2] && ip != validIPs[3] {
-		w.WriteHeader(http.StatusForbidden)
-		return
-	}
-
-	// verify jwt in header
-	ok, err := verifyWebhook()
-
-	// validate expected payload
-	var notif WebhookNotif
-	if err := json.NewDecoder(r.Body).Decode(&notif); err != nil {
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
 	defer r.Body.Close()
+
+	// validate jwt, ip, and payload hash
+	ok, err := verifyWebhook(raw, ip, r.Header)
+	// WARN: SHOULD THESE BE IN SAME IF STATEMENT?
+	if err != nil || !ok {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	// validate expected payload
+	var notif WebhookNotif
+	if err := json.Unmarshal(raw, &notif); err != nil {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		return
+	}
 
 	// grab public token from payload
 	publicToken := notif.PublicTokens[0]
@@ -43,16 +48,8 @@ func plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// start background task to get access token
+	// TODO: start background task to get access token
 
 	// send back 200
 	w.WriteHeader(http.StatusOK)
-}
-
-// background task
-func getAccessToken() {
-	// take public token
-	// hit /item/public_token/exchange
-	// get access token and save to db
-	// send discord notif that bank account has been connected
 }

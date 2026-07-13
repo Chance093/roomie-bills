@@ -10,17 +10,24 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/Chance093/roomie-bills/internal/lib"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/joho/godotenv"
 	"github.com/plaid/plaid-go/v43/plaid"
 )
 
 var maxAge = 5 * time.Minute
+var validIPs = [4]string{"52.21.26.131", "52.21.47.157", "52.41.247.19", "52.88.82.239"}
 
-func verifyWebhook(webhookBody []byte, headers map[string]string) (bool, error) {
+func verifyWebhook(webhookBody []byte, ip string, headers map[string][]string) (bool, error) {
+	if ip != validIPs[0] && ip != validIPs[1] && ip != validIPs[2] && ip != validIPs[3] {
+		return false, errors.New("not a valid ip address")
+	}
+
 	tokenString := getHeaderCI(headers, "Plaid-Verification")
 	if tokenString == "" {
 		return false, errors.New("missing Plaid-Verification header")
@@ -41,7 +48,13 @@ func verifyWebhook(webhookBody []byte, headers map[string]string) (bool, error) 
 	}
 
 	// Get verification key for kid via /webhook_verification_key/get
-	pc := lib.NewPlaidClient()
+	err = godotenv.Load()
+	if err != nil {
+		return false, errors.New("could not load env")
+	}
+	plaidClientId := os.Getenv("PLAID_CLIENT_ID")
+	plaidSecretKey := os.Getenv("PLAID_SANDBOX_SECRET")
+	pc := lib.NewPlaidClient(plaidClientId, plaidSecretKey)
 	jwk, err := pc.GetJWK(kid)
 	if err != nil {
 		return false, fmt.Errorf("get JWK: %w", err)
@@ -116,11 +129,11 @@ func jwkToECDSAPublicKey(jwk *plaid.JWKPublicKey) (*ecdsa.PublicKey, error) {
 	}, nil
 }
 
-func getHeaderCI(h map[string]string, name string) string {
+func getHeaderCI(h map[string][]string, name string) string {
 	lname := strings.ToLower(name)
 	for k, v := range h {
 		if strings.ToLower(k) == lname {
-			return v
+			return v[0]
 		}
 	}
 	return ""
