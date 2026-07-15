@@ -18,8 +18,10 @@ import (
 	"github.com/plaid/plaid-go/v43/plaid"
 )
 
-var maxAge = 5 * time.Minute
-var validIPs = [4]string{"52.21.26.131", "52.21.47.157", "52.41.247.19", "52.88.82.239"}
+var (
+	maxAge   = 5 * time.Minute
+	validIPs = [4]string{"52.21.26.131", "52.21.47.157", "52.41.247.19", "52.88.82.239"}
+)
 
 func verifyWebhook(webhookBody []byte, ip string, headers map[string][]string, pc lib.PlaidClient) (bool, error) {
 	if ip != validIPs[0] && ip != validIPs[1] && ip != validIPs[2] && ip != validIPs[3] {
@@ -31,36 +33,28 @@ func verifyWebhook(webhookBody []byte, ip string, headers map[string][]string, p
 		return false, errors.New("missing Plaid-Verification header")
 	}
 
-	// Decode JWT header (unverified) to extract alg and kid
-	parser := jwt.Parser{}
-	unverified, _, err := parser.ParseUnverified(tokenString, jwt.MapClaims{})
-	if err != nil {
-		return false, fmt.Errorf("parse unverified token: %w", err)
-	}
-	if unverified.Method.Alg() != jwt.SigningMethodES256.Alg() {
-		return false, fmt.Errorf("unexpected alg %q (want ES256)", unverified.Method.Alg())
-	}
-	kid, _ := unverified.Header["kid"].(string)
-	if kid == "" {
-		return false, errors.New("missing kid in JWT header")
-	}
-
-	// Get verification key for kid via /webhook_verification_key/get
-	jwk, err := pc.GetJWK(kid)
-	if err != nil {
-		return false, fmt.Errorf("get JWK: %w", err)
-	}
-	pubKey, err := jwkToECDSAPublicKey(jwk)
-	if err != nil {
-		return false, fmt.Errorf("jwk->ecdsa: %w", err)
-	}
-
 	// Verify JWT signature
 	claims := jwt.MapClaims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (any, error) {
-		if t.Method != jwt.SigningMethodES256 {
-			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		if t.Method.Alg() != jwt.SigningMethodES256.Alg() {
+			return nil, fmt.Errorf("unexpected alg %q(want ES256)", t.Method.Alg())
 		}
+
+		kid, _ := t.Header["kid"].(string)
+		if kid == "" {
+			return false, errors.New("missing kid in JWT header")
+		}
+
+		// Get verification key for kid via /webhook_verification_key/get
+		jwk, err := pc.GetJWK(kid)
+		if err != nil {
+			return false, fmt.Errorf("get JWK: %w", err)
+		}
+		pubKey, err := jwkToECDSAPublicKey(jwk)
+		if err != nil {
+			return false, fmt.Errorf("jwk->ecdsa: %w", err)
+		}
+
 		return pubKey, nil
 	})
 	if err != nil || !token.Valid {
