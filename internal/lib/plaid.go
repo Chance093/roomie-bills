@@ -99,3 +99,17 @@ func (pc *PlaidClient) GetJWK(kid string) (*plaid.JWKPublicKey, error) {
 	}
 	return &key, nil
 }
+
+func (pc *PlaidClient) GetAccessToken(publicToken string) (string, error) {
+	exchangePublicTokenReq := plaid.NewItemPublicTokenExchangeRequest(publicToken)
+	exchangePublicTokenResp, _, err := pc.client.PlaidApi.ItemPublicTokenExchange(pc.ctx).ItemPublicTokenExchangeRequest(
+		*exchangePublicTokenReq,
+	).Execute()
+	if err != nil {
+		return "", err
+	}
+
+	accessToken := exchangePublicTokenResp.GetAccessToken()
+
+	return accessToken, nil
+}
