@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 
 	"github.com/Chance093/roomie-bills/internal/lib"
@@ -24,6 +25,7 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	raw, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
+		log.Printf("error reading body: %s\n", err.Error())
 		return
 	}
 	defer r.Body.Close()
@@ -34,6 +36,7 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	// WARN: SHOULD THESE BE IN SAME IF STATEMENT?
 	if err != nil || !ok {
 		w.WriteHeader(http.StatusForbidden)
+		log.Printf("error verifying webhook: %s\n", err.Error())
 		return
 	}
 
@@ -41,6 +44,7 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	var notif WebhookNotif
 	if err := json.Unmarshal(raw, &notif); err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
+		log.Printf("error unmarshaling json: %s\n", err.Error())
 		return
 	}
 
@@ -48,10 +52,13 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	publicToken := notif.PublicTokens[0]
 	if publicToken == "" {
 		w.WriteHeader(http.StatusBadRequest)
+		log.Println("no public token found")
 		return
 	}
 
-	// TODO: start background task to get access token
+	// TODO: turn this into a background task
+
+	// get access token and save to db
 
 	// send back 200
 	w.WriteHeader(http.StatusOK)
