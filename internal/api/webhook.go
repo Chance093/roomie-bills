@@ -56,7 +56,7 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: turn this into a background task
+	// TODO: turn everything below into a background task
 
 	// get access token, bank name and save to db
 	accessToken, err := pc.GetAccessToken(publicToken)
@@ -65,11 +65,17 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error getting access token: %s", err.Error())
 		return
 	}
-	
+
 	bank, err := pc.GetBankName(accessToken)
 	if err != nil {
 		w.WriteHeader(http.StatusBadGateway)
 		log.Printf("error getting bank name: %s", err.Error())
+		return
+	}
+
+	if err = s.DB.UpdateBankRecord(notif.LinkToken, accessToken.Token, accessToken.ItemId, bank); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("error updating bank record: %s", err.Error())
 		return
 	}
 

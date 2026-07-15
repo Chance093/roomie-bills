@@ -129,3 +129,20 @@ func (db *DB) DeleteBankRecord(linkToken string) error {
 
 	return nil
 }
+
+func (db *DB) UpdateBankRecord(linkToken, accessToken, plaidId, bankName string) error {
+	sqlStatement := `
+	UPDATE banks 
+	SET access_token = ? plaid_id = ? access_token = ?
+	WHERE link_token = ?
+	`
+
+	_, err := db.Exec(sqlStatement, accessToken, plaidId, bankName, linkToken)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("updated bank record")
+
+	return nil
+}

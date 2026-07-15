@@ -100,22 +100,31 @@ func (pc *PlaidClient) GetJWK(kid string) (*plaid.JWKPublicKey, error) {
 	return &key, nil
 }
 
-func (pc *PlaidClient) GetAccessToken(publicToken string) (string, error) {
+type AccessToken struct {
+	Token  string
+	ItemId string
+}
+
+func (pc *PlaidClient) GetAccessToken(publicToken string) (AccessToken, error) {
 	exchangePublicTokenReq := plaid.NewItemPublicTokenExchangeRequest(publicToken)
 	exchangePublicTokenResp, _, err := pc.client.PlaidApi.ItemPublicTokenExchange(pc.ctx).ItemPublicTokenExchangeRequest(
 		*exchangePublicTokenReq,
 	).Execute()
 	if err != nil {
-		return "", err
+		return AccessToken{}, err
 	}
 
 	accessToken := exchangePublicTokenResp.GetAccessToken()
+	itemId := exchangePublicTokenResp.GetItemId()
 
-	return accessToken, nil
+	return AccessToken{
+		Token:  accessToken,
+		ItemId: itemId,
+	}, nil
 }
 
-func (pc *PlaidClient) GetBankName(accessToken string) (string, error) {
-	request := plaid.NewItemGetRequest(accessToken)
+func (pc *PlaidClient) GetBankName(accessToken AccessToken) (string, error) {
+	request := plaid.NewItemGetRequest(accessToken.Token)
 	resp, _, err := pc.client.PlaidApi.ItemGet(pc.ctx).ItemGetRequest(*request).Execute()
 	if err != nil {
 		return "", err
