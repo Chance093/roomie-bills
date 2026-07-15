@@ -113,3 +113,16 @@ func (pc *PlaidClient) GetAccessToken(publicToken string) (string, error) {
 
 	return accessToken, nil
 }
+
+func (pc *PlaidClient) GetBankName(accessToken string) (string, error) {
+	request := plaid.NewItemGetRequest(accessToken)
+	resp, _, err := pc.client.PlaidApi.ItemGet(pc.ctx).ItemGetRequest(*request).Execute()
+	if err != nil {
+		return "", err
+	}
+
+	item := resp.GetItem()
+	institution := item.GetInstitutionName()
+
+	return institution, nil
+}

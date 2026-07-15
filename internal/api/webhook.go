@@ -58,11 +58,18 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: turn this into a background task
 
-	// get access token and save to db
+	// get access token, bank name and save to db
 	accessToken, err := pc.GetAccessToken(publicToken)
 	if err != nil {
 		w.WriteHeader(http.StatusBadGateway)
 		log.Printf("error getting access token: %s", err.Error())
+		return
+	}
+	
+	bank, err := pc.GetBankName(accessToken)
+	if err != nil {
+		w.WriteHeader(http.StatusBadGateway)
+		log.Printf("error getting bank name: %s", err.Error())
 		return
 	}
 
