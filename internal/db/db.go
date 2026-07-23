@@ -131,10 +131,11 @@ func (db *DB) DeleteBankRecord(linkToken string) error {
 }
 
 func (db *DB) UpdateBankRecord(linkToken, accessToken, plaidId, bankName string) error {
+	// TODO: use current timestamp for updated_at
 	sqlStatement := `
 	UPDATE banks 
-	SET access_token = ? plaid_id = ? access_token = ?
-	WHERE link_token = ?
+	SET access_token = ?, plaid_id = ?, name = ?
+	WHERE link_token = ?;
 	`
 
 	_, err := db.Exec(sqlStatement, accessToken, plaidId, bankName, linkToken)

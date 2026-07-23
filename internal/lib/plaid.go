@@ -32,7 +32,7 @@ type HostedLink struct {
 	RequestId string
 }
 
-func (pc *PlaidClient) GetHostedLink(roomie string) (HostedLink, error) {
+func (pc *PlaidClient) GetHostedLink(roomie string, env map[string]string) (HostedLink, error) {
 	user := plaid.LinkTokenCreateRequestUser{
 		ClientUserId: roomie,
 	}
@@ -54,10 +54,11 @@ func (pc *PlaidClient) GetHostedLink(roomie string) (HostedLink, error) {
 		[]plaid.CountryCode{plaid.COUNTRYCODE_US},
 	)
 	hosted := plaid.LinkTokenCreateHostedLink{}
+	webhookUrl := fmt.Sprintf("%s/webhooks/plaid", env["DOMAIN"])
 
-	// TODO: Set webhook url here
 	request.SetProducts([]plaid.Products{plaid.PRODUCTS_TRANSACTIONS})
 	request.SetLinkCustomizationName("default")
+	request.SetWebhook(webhookUrl)
 	request.SetAccountFilters(accountFilters)
 	request.SetHostedLink(hosted)
 	request.SetUser(user)

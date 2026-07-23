@@ -24,8 +24,11 @@ var (
 )
 
 func verifyWebhook(webhookBody []byte, ip string, headers map[string][]string, pc lib.PlaidClient) (bool, error) {
-	if ip != validIPs[0] && ip != validIPs[1] && ip != validIPs[2] && ip != validIPs[3] {
-		return false, errors.New("not a valid ip address")
+	if !strings.Contains(ip, validIPs[0]) &&
+		!strings.Contains(ip, validIPs[1]) &&
+		!strings.Contains(ip, validIPs[2]) &&
+		!strings.Contains(ip, validIPs[3]) {
+		return false, fmt.Errorf("not a valid ip address: %s", ip)
 	}
 
 	tokenString := getHeaderCI(headers, "Plaid-Verification")

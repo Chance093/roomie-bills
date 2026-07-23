@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/Chance093/roomie-bills/internal/lib"
 )
@@ -22,6 +23,9 @@ type WebhookNotif struct {
 func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	// get payload, header, and ip for validation
 	ip := r.RemoteAddr
+	if strings.Contains(ip, "[::1]") { // ngrok
+		ip = getHeaderCI(r.Header, "X-Forwarded-For")
+	}
 	raw, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
@@ -48,13 +52,20 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// grab public token from payload
-	publicToken := notif.PublicTokens[0]
-	if publicToken == "" {
+	// early return 200 if its not the event we are looking for
+	if notif.WebhookType != "LINK" || notif.WebhookCode != "SESSION_FINISHED" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// validate and obtain public token from payload
+	// WARN: This might crash program because of 2nd conditional (check online)
+	if len(notif.PublicTokens) == 0 || notif.PublicTokens[0] == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Println("no public token found")
 		return
-	}
+	} 
+	publicToken := notif.PublicTokens[0]
 
 	// TODO: turn everything below into a background task
 

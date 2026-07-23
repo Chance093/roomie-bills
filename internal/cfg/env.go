@@ -17,6 +17,7 @@ func GetEnv() (map[string]string, error) {
 		"PLAID_SANDBOX_SECRET",
 		"DISCORD_TOKEN",
 		"DISCORD_CHANNEL_ID",
+		"DOMAIN",
 	}
 
 	env := make(map[string]string)

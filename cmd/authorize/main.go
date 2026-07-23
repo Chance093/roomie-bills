@@ -28,7 +28,7 @@ func main() {
 
 	// get hosted link from plaid
 	pc := lib.NewPlaidClient(env)
-	hostedLink, err := pc.GetHostedLink(roomie)
+	hostedLink, err := pc.GetHostedLink(roomie, env)
 	if err != nil {
 		log.Fatal(err)
 	}
