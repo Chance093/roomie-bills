@@ -1,9 +1,7 @@
 # Roomie Bills
 
 ## TODO
-- [x] Find a way to set triggers for incoming bills (emails, bank accounts, etc.)
 - [ ] Set up plaid api to get triggers for paid bills (https://plaid.com/)
-- [ ] Set up sqlite database to track already existing bills
 - [ ] Create roomie discord server that has a bills channel
 - [ ] Create a discord bot that writes bills to a discord channel
 - [ ] Create a command that marks bills as paid
@@ -11,6 +9,11 @@
 - [ ] Create a function that will split the bills evenly (accounts for rounding errors)
 - [ ] Create a function that handles electric bill since madison and kane pay extra every month
 - [ ] Find a way to host this server
+
+- [ ] Create background task that saves bank info and account info
+- [ ] Use structured logging and find where to put those logs
+- [ ] Create make file for commands
+- [ ] Create a command on discord to connect bank accounts: `/connect`
 
 ### Message Format
 
