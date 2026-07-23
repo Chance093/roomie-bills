@@ -23,17 +23,17 @@ var (
 	validIPs = [4]string{"52.21.26.131", "52.21.47.157", "52.41.247.19", "52.88.82.239"}
 )
 
-func verifyWebhook(webhookBody []byte, ip string, headers map[string][]string, pc lib.PlaidClient) (bool, error) {
+func verifyWebhook(webhookBody []byte, ip string, headers map[string][]string, pc lib.PlaidClient) error {
 	if !strings.Contains(ip, validIPs[0]) &&
 		!strings.Contains(ip, validIPs[1]) &&
 		!strings.Contains(ip, validIPs[2]) &&
 		!strings.Contains(ip, validIPs[3]) {
-		return false, fmt.Errorf("not a valid ip address: %s", ip)
+		return fmt.Errorf("not a valid ip address: %s", ip)
 	}
 
 	tokenString := getHeaderCI(headers, "Plaid-Verification")
 	if tokenString == "" {
-		return false, errors.New("missing Plaid-Verification header")
+		return errors.New("missing Plaid-Verification header")
 	}
 
 	// Verify JWT signature
@@ -45,29 +45,29 @@ func verifyWebhook(webhookBody []byte, ip string, headers map[string][]string, p
 
 		kid, _ := t.Header["kid"].(string)
 		if kid == "" {
-			return false, errors.New("missing kid in JWT header")
+			return nil, errors.New("missing kid in JWT header")
 		}
 
 		// Get verification key for kid via /webhook_verification_key/get
 		jwk, err := pc.GetJWK(kid)
 		if err != nil {
-			return false, fmt.Errorf("get JWK: %w", err)
+			return nil, fmt.Errorf("get JWK: %w", err)
 		}
 		pubKey, err := jwkToECDSAPublicKey(jwk)
 		if err != nil {
-			return false, fmt.Errorf("jwk->ecdsa: %w", err)
+			return nil, fmt.Errorf("jwk->ecdsa: %w", err)
 		}
 
 		return pubKey, nil
 	})
 	if err != nil || !token.Valid {
-		return false, fmt.Errorf("invalid token: %w", err)
+		return fmt.Errorf("invalid token: %w", err)
 	}
 
 	// Verify that the webhook is not more than 5 minutes old
 	iatVal, ok := claims["iat"]
 	if !ok {
-		return false, errors.New("missing iat")
+		return errors.New("missing iat")
 	}
 	var iat time.Time
 	switch v := iatVal.(type) {
@@ -76,24 +76,24 @@ func verifyWebhook(webhookBody []byte, ip string, headers map[string][]string, p
 	case int64:
 		iat = time.Unix(v, 0)
 	default:
-		return false, errors.New("invalid iat type")
+		return errors.New("invalid iat type")
 	}
 	if time.Since(iat) > maxAge {
-		return false, errors.New("token too old (>5m)")
+		return errors.New("token too old (>5m)")
 	}
 
 	// Verify body hash integrity
 	wantHash, ok := claims["request_body_sha256"].(string)
 	if !ok || wantHash == "" {
-		return false, errors.New("missing request_body_sha256")
+		return errors.New("missing request_body_sha256")
 	}
 	sum := sha256.Sum256(webhookBody)
 	gotHex := strings.ToLower(hex.EncodeToString(sum[:]))
 	if subtle.ConstantTimeCompare([]byte(gotHex), []byte(strings.ToLower(wantHash))) != 1 {
-		return false, errors.New("body hash mismatch")
+		return errors.New("body hash mismatch")
 	}
 
-	return true, nil
+	return nil
 }
 
 // helper method

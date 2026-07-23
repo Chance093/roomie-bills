@@ -21,11 +21,7 @@ type WebhookNotif struct {
 }
 
 func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
-	// get payload, header, and ip for validation
-	ip := r.RemoteAddr
-	if strings.Contains(ip, "[::1]") { // ngrok
-		ip = getHeaderCI(r.Header, "X-Forwarded-For")
-	}
+	// get payload and validate
 	raw, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
@@ -34,17 +30,6 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	// validate jwt, ip, and payload hash
-	pc := lib.NewPlaidClient(s.env)
-	ok, err := verifyWebhook(raw, ip, r.Header, pc)
-	// WARN: SHOULD THESE BE IN SAME IF STATEMENT?
-	if err != nil || !ok {
-		w.WriteHeader(http.StatusForbidden)
-		log.Printf("error verifying webhook: %s\n", err.Error())
-		return
-	}
-
-	// validate expected payload
 	var notif WebhookNotif
 	if err := json.Unmarshal(raw, &notif); err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
@@ -55,6 +40,18 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	// early return 200 if its not the event we are looking for
 	if notif.WebhookType != "LINK" || notif.WebhookCode != "SESSION_FINISHED" {
 		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// validate jwt, ip, and payload hash
+	pc := lib.NewPlaidClient(s.env)
+	ip := r.RemoteAddr
+	if strings.Contains(ip, "[::1]") { // ngrok
+		ip = getHeaderCI(r.Header, "X-Forwarded-For")
+	}
+	if err := verifyWebhook(raw, ip, r.Header, pc); err != nil {
+		w.WriteHeader(http.StatusForbidden)
+		log.Printf("error verifying webhook: %s\n", err.Error())
 		return
 	}
 
