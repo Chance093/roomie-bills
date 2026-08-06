@@ -1,4 +1,4 @@
-.PHONY = list build-api build-link ngrok redis-cli redis-server run-api run-link test
+.PHONY = list build-api build-link clear-tasks ngrok redis-cli redis-server run-api run-link test
 
 API_SRC := ./cmd/api/main.go
 API_BIN := api
@@ -18,13 +18,17 @@ build-link: ${LINK_SRC}
 	@echo "Building link bin..."
 	go build ${LINK_SRC} -o ${LINK_BIN}
 
+clear-tasks:
+	@echo "Clearing task message queue..."
+	@rm dump.rdb && rm -rf appendonlydir
+
 ngrok:
 	@echo "Running ngrok..."
 	ngrok http 8080
 
 redis-cli: ${REDIS_CLI}
 	@echo "Starting redis cli..."
-	redis-cli
+	@redis-cli
 
 redis-server: ${REDIS_CONFIG}
 	@echo "Starting redis server..."
