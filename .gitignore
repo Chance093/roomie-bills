@@ -33,3 +33,7 @@ go.work.sum
 
 # ignore db
 *.db
+
+# redis db
+*.rdb
+appendonlydir
