@@ -8,7 +8,7 @@ import (
 )
 
 type RedisOpts struct {
-	addr string
+	Addr string
 }
 
 type Client struct {
@@ -27,10 +27,10 @@ type TaskInfo struct {
 }
 
 // TODO: error handling
-func (c Client) Enqueue(task Task) (TaskInfo, error) {
+func (c Client) Enqueue(task *Task) (TaskInfo, error) {
 	const Queue = "JobQueue"
 	// marshall json
-	jTask, err := json.Marshal(task)
+	jTask, err := json.Marshal(&task)
 	if err != nil {
 		return TaskInfo{}, err
 	}
@@ -40,7 +40,7 @@ func (c Client) Enqueue(task Task) (TaskInfo, error) {
 
 	// push to redis message queue
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
+		Addr:     c.Addr,
 		Password: "", // no password
 		DB:       0,  // use default DB
 		Protocol: 2,
