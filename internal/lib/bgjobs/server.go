@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -30,8 +29,7 @@ func NewServer(opts RedisOpts, cfg ServerConfig) Server {
 // continuously tries to pop off queue until task shows up,
 // then it will look up the task name in the multiplexer and
 // get the handler to run
-func (s *Server) Run(mux *ServeMux) {
-	// TODO: make this return error
+func (s *Server) Run(mux *ServeMux) error {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     s.Addr,
 		Password: "", // no password
@@ -40,30 +38,41 @@ func (s *Server) Run(mux *ServeMux) {
 	})
 	ctx := context.Background()
 
-	worker(ctx, mux, rdb) // 1 worker for now
+	fmt.Println("Worker listening for tasks...")
+
+	return worker(ctx, mux, rdb) // 1 worker for now
 }
 
-func worker(ctx context.Context, mux *ServeMux, rdb *redis.Client) {
+// TODO: Implement task timeout (force kill and retry)
+// TODO: Implement backoff retry logic
+// TODO: Reliable queue (send to temp queue until confirmed done)
+// TODO: DLQ (when task runs out of retries, send to DLQ)
+// TODO: Generate task id's for logging/tracing
+// TODO: Allow for dynamic workers based on the amount of jobs
+func worker(ctx context.Context, mux *ServeMux, rdb *redis.Client) error {
 	for {
 		// dequeue task (blocking)
+		// TODO: change this to BLMove
 		raw, err := rdb.BRPop(ctx, time.Duration(0), Queue).Result()
 		if err != nil {
-			log.Fatal(err) // TODO: error handling
+			return fmt.Errorf("Failed to dequeue: %w", err)
 		}
 
 		// unmarshall json
 		var task Task
 		if err := json.Unmarshal([]byte(raw[1]), &task); err != nil {
-			log.Fatal(err) // TODO: error handling
+			return fmt.Errorf("Failed to unmarshal raw task json: %w", err)
 		}
 
 		// look up task name in mux
 		h, err := mux.getHandler(task.Name)
 		if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("Failed to get task handler: %w", err)
 		}
 
-		h(&task)
+		if err := h(&task); err != nil {
+			return fmt.Errorf("Task handler failed: %w", err)
+		}
 	}
 }
 
