@@ -47,7 +47,6 @@ func (s *Server) Run(mux *ServeMux) error {
 // TODO: Implement backoff retry logic
 // TODO: Reliable queue (send to temp queue until confirmed done)
 // TODO: DLQ (when task runs out of retries, send to DLQ)
-// TODO: Generate task id's for logging/tracing
 // TODO: Allow for dynamic workers based on the amount of jobs
 func worker(ctx context.Context, mux *ServeMux, rdb *redis.Client) error {
 	for {

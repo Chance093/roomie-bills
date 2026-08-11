@@ -3,6 +3,7 @@ package bgjobs
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -26,16 +27,12 @@ type TaskInfo struct {
 	Queue string
 }
 
-// TODO: error handling
 func (c Client) Enqueue(task *Task) (TaskInfo, error) {
 	// marshall json
 	jTask, err := json.Marshal(&task)
 	if err != nil {
-		return TaskInfo{}, err
+		return TaskInfo{}, fmt.Errorf("Failed to marshal task into json: %w", err)
 	}
-
-	// TODO: Generate example id
-	id := "example id"
 
 	// push to redis message queue
 	rdb := redis.NewClient(&redis.Options{
@@ -47,8 +44,8 @@ func (c Client) Enqueue(task *Task) (TaskInfo, error) {
 	ctx := context.Background()
 
 	if _, err := rdb.LPush(ctx, Queue, jTask).Result(); err != nil {
-		return TaskInfo{}, err
+		return TaskInfo{}, fmt.Errorf("Failed to enqueue task: %w", err)
 	}
 
-	return TaskInfo{Id: id, Queue: Queue}, nil
+	return TaskInfo{Id: task.Id, Queue: Queue}, nil
 }
