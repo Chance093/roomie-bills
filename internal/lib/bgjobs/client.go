@@ -28,7 +28,6 @@ type TaskInfo struct {
 
 // TODO: error handling
 func (c Client) Enqueue(task *Task) (TaskInfo, error) {
-	const Queue = "JobQueue"
 	// marshall json
 	jTask, err := json.Marshal(&task)
 	if err != nil {
