@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -19,7 +20,7 @@ type Server struct {
 	cfg ServerConfig
 }
 
-type Handler func(*Task) error
+type Handler func(Task) error
 
 // set options to server
 func NewServer(opts RedisOpts, cfg ServerConfig) Server {
@@ -29,7 +30,7 @@ func NewServer(opts RedisOpts, cfg ServerConfig) Server {
 // continuously tries to pop off queue until task shows up,
 // then it will look up the task name in the multiplexer and
 // get the handler to run
-func (s *Server) Run(mux *ServeMux) error {
+func (s *Server) Run(mux *ServeMux) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     s.Addr,
 		Password: "", // no password
@@ -38,19 +39,22 @@ func (s *Server) Run(mux *ServeMux) error {
 	})
 	ctx := context.Background()
 
-	fmt.Println("Worker listening for tasks...")
+	// run multiple workers concurrently
+	var wg sync.WaitGroup
+	for i := 1; i <= s.cfg.Concurrency; i++ {
+		wg.Go(func() {
+			worker(ctx, mux, rdb, i)
+		})
+	}
 
-	return worker(ctx, mux, rdb) // 1 worker for now
+	wg.Wait()
 }
 
-// TODO: Implement task timeout (force kill and retry)
-// TODO: Implement backoff retry logic
-// TODO: Reliable queue (send to temp queue until confirmed done)
-// TODO: DLQ (when task runs out of retries, send to DLQ)
-// TODO: Allow for dynamic workers based on the amount of jobs
-func worker(ctx context.Context, mux *ServeMux, rdb *redis.Client) error {
+func worker(ctx context.Context, mux *ServeMux, rdb *redis.Client, i int) error {
 	for {
+		fmt.Printf("Worker %d listening for tasks...\n", i)
 		// dequeue task (blocking)
+		// TODO: Reliable queue (send to temp queue until confirmed done)
 		// TODO: change this to BLMove
 		raw, err := rdb.BRPop(ctx, time.Duration(0), Queue).Result()
 		if err != nil {
@@ -69,7 +73,10 @@ func worker(ctx context.Context, mux *ServeMux, rdb *redis.Client) error {
 			return fmt.Errorf("Failed to get task handler: %w", err)
 		}
 
-		if err := h(&task); err != nil {
+		// TODO: Implement task timeout (force kill and retry)
+		// TODO: Implement backoff retry logic
+		// TODO: DLQ (when task runs out of retries, send to DLQ)
+		if err := h(task); err != nil {
 			return fmt.Errorf("Task handler failed: %w", err)
 		}
 	}
