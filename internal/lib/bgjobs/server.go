@@ -81,10 +81,14 @@ OUTER:
 		for attempt := 1; attempt <= int(t.Retries); attempt++ {
 			err := h(ctx, t)
 			if err == nil {
-				// TODO: remove task from temp queue
+				// on success, remove task from temp queue
+				if _, err := rdb.LRem(ctx, Temp, 0, raw).Result(); err != nil {
+					return fmt.Errorf("Failed to remove task from temp queue: %w\n", err)
+				}
 				continue OUTER
 			}
 
+			// back off before retry
 			fmt.Println(err)
 			sleepDur := time.Duration(math.Pow(2, float64(attempt)))
 			time.Sleep(time.Second * sleepDur)

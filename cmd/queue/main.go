@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
 )
@@ -47,5 +48,6 @@ func main() {
 }
 
 func sendNameAndAge(ctx context.Context, t bgjobs.Task) error {
+	time.Sleep(time.Second * 5)
 	return nil
 }
