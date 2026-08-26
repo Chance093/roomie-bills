@@ -27,6 +27,12 @@ func NewTask(name string, payload []byte, opts ...any) *Task {
 		Timeout: time.Second * 5,
 	}
 
+	setTaskOpts(t, opts)
+
+	return t
+}
+
+func setTaskOpts(t *Task, opts []any) {
 	for _, opt := range opts {
 		switch opt := opt.(type) {
 		case Timeout:
@@ -45,6 +51,4 @@ func NewTask(name string, payload []byte, opts ...any) *Task {
 			continue
 		}
 	}
-
-	return t
 }

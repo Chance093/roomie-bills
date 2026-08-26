@@ -107,3 +107,62 @@ func TestNewTask(t *testing.T) {
 		})
 	}
 }
+
+func TestSetTaskOpts(t *testing.T) {
+	task := Task{
+		Retries: 1,
+		Timeout: time.Second * 5,
+	}
+
+	tests := []struct {
+		name string
+		opts []any
+		want Task
+	}{
+		{
+			name: "No opts",
+			want: Task{
+				Retries: 1,
+				Timeout: time.Second * 5,
+			},
+		},
+		{
+			name: "Set retries",
+			opts: []any{MaxRetry(5)},
+			want: Task{
+				Retries: 5,
+				Timeout: time.Second * 5,
+			},
+		},
+		{
+			name: "Set timeout",
+			opts: []any{Timeout(time.Second * 2)},
+			want: Task{
+				Retries: 1,
+				Timeout: time.Second * 2,
+			},
+		},
+		{
+			name: "Set retries and timeout",
+			opts: []any{MaxRetry(5), Timeout(time.Second * 2)},
+			want: Task{
+				Retries: 5,
+				Timeout: time.Second * 2,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			copy := task
+			setTaskOpts(&copy, tt.opts)
+
+			if copy.Retries != tt.want.Retries {
+				t.Errorf("Task retries not as expected. want: %d, got: %d", tt.want.Retries, copy.Retries)
+			}
+			if copy.Timeout != tt.want.Timeout {
+				t.Errorf("Task timeout not as expected. want: %d, got: %d", tt.want.Timeout, copy.Timeout)
+			}
+		})
+	}
+}

@@ -27,7 +27,10 @@ type TaskInfo struct {
 	Queue string
 }
 
-func (c Client) Enqueue(task *Task) (TaskInfo, error) {
+func (c Client) Enqueue(task *Task, opts ...any) (TaskInfo, error) {
+	// override task opts with new opts
+	setTaskOpts(task, opts)
+
 	// marshall json
 	jTask, err := json.Marshal(&task)
 	if err != nil {
