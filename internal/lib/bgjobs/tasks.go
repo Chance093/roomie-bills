@@ -1,21 +1,50 @@
 package bgjobs
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Task struct {
-	Id      string `json:"id"`
-	Name    string `json:"name"`
-	Payload []byte `json:"payload"`
-	Retries int    `json:"retries"`
-	Timeout int    `json:"timeout"`
+	Id      string        `json:"id"`
+	Name    string        `json:"name"`
+	Payload []byte        `json:"payload"`
+	Retries int8          `json:"retries"`
+	Timeout time.Duration `json:"timeout"`
 }
 
-func NewTask(name string, payload []byte) *Task {
-	return &Task{
+type Timeout int64
+
+type MaxRetry int8
+
+func NewTask(name string, payload []byte, opts ...any) *Task {
+	t := &Task{
 		Id:      uuid.New().String(),
 		Name:    name,
 		Payload: payload,
-		Retries: 5,
-		Timeout: 20,
+		Retries: 1,
+		Timeout: time.Second * 5,
 	}
+
+	for _, opt := range opts {
+		switch opt := opt.(type) {
+		case Timeout:
+			timeout := time.Duration(opt)
+			if timeout > time.Duration(0) {
+				t.Timeout = timeout
+			}
+			continue
+		case MaxRetry:
+			retry := int8(opt)
+			if retry > 0 {
+				t.Retries = retry
+			}
+			continue
+		default:
+			continue
+		}
+	}
+
+	return t
 }
