@@ -55,17 +55,15 @@ OUTER:
 	for {
 		ctx := context.Background()
 
-		// dequeue task (blocking)
-		// TODO: Reliable queue (send to temp queue until confirmed done)
-		// TODO: change this to BLMove
-		raw, err := rdb.BRPop(ctx, time.Duration(0), Queue).Result()
+		// dequeue task (blocking) and move to temp queue (reliable queue)
+		raw, err := rdb.BLMove(ctx, Queue, Temp, "RIGHT", "LEFT", time.Duration(0)).Result()
 		if err != nil {
 			return fmt.Errorf("Failed to dequeue: %w", err)
 		}
 
-		// unmarshall json
+		// unmarshall json into Task struct
 		var t Task
-		if err := json.Unmarshal([]byte(raw[1]), &t); err != nil {
+		if err := json.Unmarshal([]byte(raw), &t); err != nil {
 			return fmt.Errorf("Failed to unmarshal raw task json: %w", err)
 		}
 
@@ -83,6 +81,7 @@ OUTER:
 		for attempt := 1; attempt <= int(t.Retries); attempt++ {
 			err := h(ctx, t)
 			if err == nil {
+				// TODO: remove task from temp queue
 				continue OUTER
 			}
 
@@ -92,7 +91,7 @@ OUTER:
 		}
 
 		// code only executes if retries ran out
-		// TODO: DLQ (when task runs out of retries, send to DLQ)
+		// TODO: Implement DLQ (when task runs out of retries, send to DLQ)
 	}
 }
 

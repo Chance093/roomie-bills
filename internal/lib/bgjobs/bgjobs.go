@@ -1,3 +1,6 @@
-package bgjobs 
+package bgjobs
 
-const Queue = "jobs:queue"
+const (
+	Queue = "jobs:queue"
+	Temp  = "jobs:temp"
+)

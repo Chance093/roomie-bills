@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 
 	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
@@ -48,5 +47,5 @@ func main() {
 }
 
 func sendNameAndAge(ctx context.Context, t bgjobs.Task) error {
-	return fmt.Errorf("Error in task: %s", t.Name)
+	return nil
 }
