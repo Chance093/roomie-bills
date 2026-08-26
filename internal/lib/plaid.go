@@ -102,8 +102,8 @@ func (pc *PlaidClient) GetJWK(kid string) (*plaid.JWKPublicKey, error) {
 }
 
 type AccessToken struct {
-	Token  string
-	ItemId string
+	Token  string `json:"token"`
+	ItemId string `json:"itemId"`
 }
 
 func (pc *PlaidClient) GetAccessToken(publicToken string) (AccessToken, error) {

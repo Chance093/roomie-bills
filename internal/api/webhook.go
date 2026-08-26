@@ -87,6 +87,8 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// create accounts
+
 	// send back 200
 	w.WriteHeader(http.StatusOK)
 }
