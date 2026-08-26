@@ -32,7 +32,7 @@ func (c Client) Enqueue(task *Task, opts ...any) (TaskInfo, error) {
 	setTaskOpts(task, opts)
 
 	// marshall json
-	jTask, err := json.Marshal(&task)
+	jTask, err := json.Marshal(*task)
 	if err != nil {
 		return TaskInfo{}, fmt.Errorf("Failed to marshal task into json: %w", err)
 	}

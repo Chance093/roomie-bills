@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"time"
 
@@ -34,7 +35,7 @@ func main() {
 	}
 
 	// push tasks to queue
-	task1 := bgjobs.NewTask(TypeTestTask, b, bgjobs.MaxRetry(5))
+	task1 := bgjobs.NewTask(TypeTestTask, b, bgjobs.MaxRetry(3))
 	if _, err := client.Enqueue(task1); err != nil {
 		log.Fatal(err)
 	}
@@ -48,6 +49,6 @@ func main() {
 }
 
 func sendNameAndAge(ctx context.Context, t bgjobs.Task) error {
-	time.Sleep(time.Second * 5)
-	return nil
+	time.Sleep(time.Second * 2)
+	return errors.New("This is an error in the task handler")
 }

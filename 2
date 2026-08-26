@@ -50,7 +50,6 @@ func (s *Server) Run(mux *ServeMux) {
 	wg.Wait()
 }
 
-// TODO: error logging
 func worker(mux *ServeMux, rdb *redis.Client) error {
 OUTER:
 	for {
@@ -81,6 +80,7 @@ OUTER:
 			ctx, cancel := context.WithTimeout(ctx, t.Timeout)
 			defer cancel()
 
+			fmt.Println(attempt)
 			err := h(ctx, t)
 			if err == nil {
 				// on success, remove task from temp queue
@@ -91,7 +91,8 @@ OUTER:
 			}
 
 			// backoff before retry
-			errMessages = append(errMessages, err.Error())
+			fmt.Println("appending")
+			e = append(e, err.Error())
 			if attempt < int(t.Retries) {
 				sleepDur := time.Duration(math.Pow(2, float64(attempt)))
 				time.Sleep(time.Second * sleepDur)
@@ -103,7 +104,7 @@ OUTER:
 			return fmt.Errorf("Failed to remove task from temp queue: %w\n", err)
 		}
 
-		if err := sendToDLQ(ctx, rdb, t, errMessages); err != nil {
+		if err := sendToDLQ(ctx, rdb, t, e); err != nil {
 			newErr := fmt.Errorf("Failed to send task to DLQ: %w\n", err)
 			fmt.Println(newErr)
 			return newErr
@@ -129,6 +130,8 @@ func sendToDLQ(ctx context.Context, rdb *redis.Client, t Task, e []string) error
 	if err != nil {
 		return fmt.Errorf("Failed to marshal dl into json: %w", err)
 	}
+
+	fmt.Println(string(jdl))
 
 	// send to DLQ
 	if _, err := rdb.LPush(ctx, DLQ, jdl).Result(); err != nil {
