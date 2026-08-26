@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -20,7 +21,7 @@ type Server struct {
 	cfg ServerConfig
 }
 
-type Handler func(Task) error
+type Handler func(context.Context, Task) error
 
 // set options to server
 func NewServer(opts RedisOpts, cfg ServerConfig) Server {
@@ -37,22 +38,23 @@ func (s *Server) Run(mux *ServeMux) {
 		DB:       0,  // use default DB
 		Protocol: 2,
 	})
-	ctx := context.Background()
 
 	// run multiple workers concurrently
 	var wg sync.WaitGroup
 	for i := 1; i <= s.cfg.Concurrency; i++ {
 		wg.Go(func() {
-			worker(ctx, mux, rdb, i)
+			worker(mux, rdb)
 		})
 	}
 
 	wg.Wait()
 }
 
-func worker(ctx context.Context, mux *ServeMux, rdb *redis.Client, i int) error {
+func worker(mux *ServeMux, rdb *redis.Client) error {
+OUTER:
 	for {
-		fmt.Printf("Worker %d listening for tasks...\n", i)
+		ctx := context.Background()
+
 		// dequeue task (blocking)
 		// TODO: Reliable queue (send to temp queue until confirmed done)
 		// TODO: change this to BLMove
@@ -62,23 +64,35 @@ func worker(ctx context.Context, mux *ServeMux, rdb *redis.Client, i int) error 
 		}
 
 		// unmarshall json
-		var task Task
-		if err := json.Unmarshal([]byte(raw[1]), &task); err != nil {
+		var t Task
+		if err := json.Unmarshal([]byte(raw[1]), &t); err != nil {
 			return fmt.Errorf("Failed to unmarshal raw task json: %w", err)
 		}
 
 		// look up task name in mux
-		h, err := mux.getHandler(task.Name)
+		h, err := mux.getHandler(t.Name)
 		if err != nil {
 			return fmt.Errorf("Failed to get task handler: %w", err)
 		}
 
-		// TODO: Implement task timeout (force kill and retry)
-		// TODO: Implement backoff retry logic
-		// TODO: DLQ (when task runs out of retries, send to DLQ)
-		if err := h(task); err != nil {
-			return fmt.Errorf("Task handler failed: %w", err)
+		// TODO: Implement timeout logic
+		ctx, cancel := context.WithTimeout(ctx, t.Timeout)
+		defer cancel()
+
+		// run handler with backoff retries
+		for attempt := 1; attempt <= int(t.Retries); attempt++ {
+			err := h(ctx, t)
+			if err == nil {
+				continue OUTER
+			}
+
+			fmt.Println(err)
+			sleepDur := time.Duration(math.Pow(2, float64(attempt)))
+			time.Sleep(time.Second * sleepDur)
 		}
+
+		// code only executes if retries ran out
+		// TODO: DLQ (when task runs out of retries, send to DLQ)
 	}
 }
 
