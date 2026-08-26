@@ -37,3 +37,6 @@ go.work.sum
 # redis db
 *.rdb
 appendonlydir
+
+# sandbox
+cmd/sandbox/*
