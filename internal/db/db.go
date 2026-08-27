@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/Chance093/roomie-bills/internal/lib"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -154,7 +155,7 @@ func (db *DB) AccessTokenExists(accessToken string) (bool, error) {
 	}
 }
 
-func (db *DB) UpdateBankRecord(linkToken, accessToken, plaidId, bankName string) error {
+func (db *DB) UpdateBankRecord(linkToken, bankName string, accessToken lib.AccessToken) error {
 	// TODO: use current timestamp for updated_at
 	sqlStatement := `
 	UPDATE banks 
@@ -162,7 +163,7 @@ func (db *DB) UpdateBankRecord(linkToken, accessToken, plaidId, bankName string)
 	WHERE link_token = ?;
 	`
 
-	_, err := db.Exec(sqlStatement, accessToken, plaidId, bankName, linkToken)
+	_, err := db.Exec(sqlStatement, accessToken.Token, accessToken.ItemId, bankName, linkToken)
 	if err != nil {
 		return err
 	}

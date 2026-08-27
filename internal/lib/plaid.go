@@ -1,5 +1,7 @@
 package lib
 
+// TODO: Turn this into its own package. lib -> plaid
+
 import (
 	"context"
 	"fmt"

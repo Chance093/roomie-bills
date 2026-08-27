@@ -9,7 +9,10 @@ import (
 
 	"github.com/Chance093/roomie-bills/internal/lib"
 	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
+	"github.com/Chance093/roomie-bills/internal/tasks"
 )
+
+const Addr = "127.0.0.1:6379"
 
 type WebhookNotif struct {
 	WebhookType   string   `json:"webhook_type"`
@@ -57,7 +60,6 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// validate and obtain public token from payload
-	// WARN: This might crash program because of 2nd conditional (check online)
 	if len(notif.PublicTokens) == 0 || notif.PublicTokens[0] == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Println("no public token found")
@@ -66,7 +68,10 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	publicToken := notif.PublicTokens[0]
 
 	// marshal payload into json
-	jp, err := json.Marshal(GetAccessTokenPayload{publicToken, notif.LinkToken})
+	payload, err := json.Marshal(tasks.GetAccessTokenPayload{
+		PublicToken: publicToken,
+		LinkToken:   notif.LinkToken,
+	})
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Printf("Could not marshal struct into json: %s\n", err.Error())
@@ -74,7 +79,7 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// enqueue new task
-	newTask := bgjobs.NewTask(TypeGetAccessToken, jp)
+	newTask := bgjobs.NewTask(tasks.TypeGetAccessToken, payload)
 	c := bgjobs.NewClient(bgjobs.RedisOpts{Addr: Addr})
 	if _, err := c.Enqueue(newTask); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -84,14 +89,4 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 
 	// send back 200
 	w.WriteHeader(http.StatusOK)
-}
-
-const (
-	Addr               = "127.0.0.1:6379"
-	TypeGetAccessToken = "get:accessToken"
-)
-
-type GetAccessTokenPayload struct {
-	PublicToken string `json:"publicToken"`
-	LinkToken   string `json:"linkToken"`
 }
