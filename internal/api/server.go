@@ -4,24 +4,28 @@ import (
 	"net/http"
 
 	"github.com/Chance093/roomie-bills/internal/db"
+	"github.com/Chance093/roomie-bills/internal/lib"
+	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
 )
 
 type Server struct {
 	Router *http.ServeMux
 	Addr   string
 	DB     *db.DB
-	env    map[string]string
+	pc     lib.PlaidClient
+	jc     bgjobs.Client
 }
 
 // NewServer intializes a server, sets up routes, and allows database access
 // to all handlers associated with that server.
-func NewServer(port string, db *db.DB, env map[string]string) *Server {
+func NewServer(port string, pc lib.PlaidClient, jc bgjobs.Client, db *db.DB) *Server {
 	// init server
 	s := &Server{
 		Router: http.NewServeMux(),
 		Addr:   ":" + port,
 		DB:     db,
-		env:    env,
+		pc:     pc,
+		jc:     jc,
 	}
 
 	s.Router.HandleFunc("POST /webhooks/plaid", s.plaidWebhookHandler)

@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Chance093/roomie-bills/internal/lib"
-	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
 	"github.com/Chance093/roomie-bills/internal/tasks"
 )
 
@@ -48,12 +46,11 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// validate jwt, ip, and payload hash
-	pc := lib.NewPlaidClient(s.env)
 	ip := r.RemoteAddr
 	if strings.Contains(ip, "[::1]") { // ngrok
 		ip = getHeaderCI(r.Header, "X-Forwarded-For")
 	}
-	if err := verifyWebhook(raw, ip, r.Header, pc); err != nil {
+	if err := verifyWebhook(raw, ip, r.Header, s.pc); err != nil {
 		w.WriteHeader(http.StatusForbidden)
 		log.Printf("error verifying webhook: %s\n", err.Error())
 		return
@@ -75,8 +72,7 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := bgjobs.NewClient(bgjobs.RedisOpts{Addr: Addr})
-	if _, err := c.Enqueue(newTask); err != nil {
+	if _, err := s.jc.Enqueue(newTask); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Printf("Could not enqueue new task: %s\n", err.Error())
 		return
