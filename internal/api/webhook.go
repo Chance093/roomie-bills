@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Chance093/roomie-bills/internal/lib"
+	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
 )
 
 type WebhookNotif struct {
@@ -61,34 +62,36 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Println("no public token found")
 		return
-	} 
+	}
 	publicToken := notif.PublicTokens[0]
 
-	// TODO: turn everything below into a background task
-
-	// get access token, bank name and save to db
-	accessToken, err := pc.GetAccessToken(publicToken)
+	// marshal payload into json
+	jp, err := json.Marshal(GetAccessTokenPayload{publicToken, notif.LinkToken})
 	if err != nil {
-		w.WriteHeader(http.StatusBadGateway)
-		log.Printf("error getting access token: %s", err.Error())
-		return
-	}
-
-	bank, err := pc.GetBankName(accessToken)
-	if err != nil {
-		w.WriteHeader(http.StatusBadGateway)
-		log.Printf("error getting bank name: %s", err.Error())
-		return
-	}
-
-	if err = s.DB.UpdateBankRecord(notif.LinkToken, accessToken.Token, accessToken.ItemId, bank); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("error updating bank record: %s", err.Error())
+		log.Printf("Could not marshal struct into json: %s\n", err.Error())
 		return
 	}
 
-	// create accounts
+	// enqueue new task
+	newTask := bgjobs.NewTask(TypeGetAccessToken, jp)
+	c := bgjobs.NewClient(bgjobs.RedisOpts{Addr: Addr})
+	if _, err := c.Enqueue(newTask); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("Could not enqueue new task: %s\n", err.Error())
+		return
+	}
 
 	// send back 200
 	w.WriteHeader(http.StatusOK)
+}
+
+const (
+	Addr               = "127.0.0.1:6379"
+	TypeGetAccessToken = "get:accessToken"
+)
+
+type GetAccessTokenPayload struct {
+	PublicToken string `json:"publicToken"`
+	LinkToken   string `json:"linkToken"`
 }

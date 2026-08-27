@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/Chance093/roomie-bills/internal/cfg"
+	"github.com/Chance093/roomie-bills/internal/db"
 	"github.com/Chance093/roomie-bills/internal/lib"
 	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
 )
@@ -40,6 +41,7 @@ type GetAccessTokenPayload struct {
 }
 
 func HandleGetAccessTokenTask(ctx context.Context, t bgjobs.Task) error {
+	fmt.Println("Starting HandleGetAccessTokenTask")
 	// get payload
 	var p GetAccessTokenPayload
 	if err := json.Unmarshal(t.Payload, &p); err != nil {
@@ -65,6 +67,7 @@ func HandleGetAccessTokenTask(ctx context.Context, t bgjobs.Task) error {
 		return fmt.Errorf("Could not marshal struct into json: %w", err)
 	}
 
+	fmt.Println("Enqueueing GetBankTask")
 	// enqueue new task
 	newTask := bgjobs.NewTask(TypeGetBank, jp)
 	c := bgjobs.NewClient(bgjobs.RedisOpts{Addr: Addr})
@@ -72,6 +75,7 @@ func HandleGetAccessTokenTask(ctx context.Context, t bgjobs.Task) error {
 		return fmt.Errorf("Could not enqueue new task: %w", err)
 	}
 
+	fmt.Println("Finished HandleGetAccessTokenTask")
 	return nil
 }
 
@@ -81,6 +85,7 @@ type GetBankPayload struct {
 }
 
 func HandleGetBankTask(ctx context.Context, t bgjobs.Task) error {
+	fmt.Println("Starting HandleGetBankTask")
 	// get payload
 	var p GetBankPayload
 	if err := json.Unmarshal(t.Payload, &p); err != nil {
@@ -112,12 +117,14 @@ func HandleGetBankTask(ctx context.Context, t bgjobs.Task) error {
 	}
 
 	// enqueue new task
+	fmt.Println("Enqueueing UpdateBankTask")
 	newTask := bgjobs.NewTask(TypeUpdateBank, jp)
 	c := bgjobs.NewClient(bgjobs.RedisOpts{Addr: Addr})
 	if _, err := c.Enqueue(newTask); err != nil {
 		return fmt.Errorf("Could not enqueue new task: %w", err)
 	}
 
+	fmt.Println("Finished HandleGetBankTask")
 	return nil
 }
 
@@ -129,5 +136,27 @@ type UpdateBankRecordPayload struct {
 }
 
 func HandleUpdateBankTask(ctx context.Context, t bgjobs.Task) error {
+	fmt.Println("Starting HandleUpdateBankTask")
+	// get payload
+	var p UpdateBankRecordPayload
+	if err := json.Unmarshal(t.Payload, &p); err != nil {
+		return fmt.Errorf("Could not unmarshal json into payload: %w", err)
+	}
+
+	db := db.NewDB()
+	defer db.Close()
+
+	// check if bank record has already been updated (idempotent)
+	if exists, err := db.AccessTokenExists(p.AccessToken); err != nil {
+		return fmt.Errorf("Error while checking if access token already exists in db: %w", err)
+	} else if exists {
+		return nil // access token exists and bank record has already been updated
+	}
+
+	if err := db.UpdateBankRecord(p.LinkToken, p.AccessToken, p.ItemId, p.Bank); err != nil {
+		return fmt.Errorf("Could not update bank record: %w", err)
+	}
+
+	fmt.Println("Finished HandleUpdateBankTask")
 	return nil
 }
