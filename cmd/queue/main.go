@@ -36,6 +36,7 @@ func main() {
 
 type GetAccessTokenPayload struct {
 	PublicToken string `json:"publicToken"`
+	LinkToken   string `json:"linkToken"`
 }
 
 func HandleGetAccessTokenTask(ctx context.Context, t bgjobs.Task) error {
@@ -59,7 +60,7 @@ func HandleGetAccessTokenTask(ctx context.Context, t bgjobs.Task) error {
 	}
 
 	// marshal new payload into json
-	jp, err := json.Marshal(GetBankPayload{accessToken})
+	jp, err := json.Marshal(GetBankPayload{accessToken, p.LinkToken})
 	if err != nil {
 		return fmt.Errorf("Could not marshal struct into json: %w", err)
 	}
@@ -76,10 +77,55 @@ func HandleGetAccessTokenTask(ctx context.Context, t bgjobs.Task) error {
 
 type GetBankPayload struct {
 	AccessToken lib.AccessToken `json:"accessToken"`
+	LinkToken   string          `json:"linkToken"`
 }
 
 func HandleGetBankTask(ctx context.Context, t bgjobs.Task) error {
+	// get payload
+	var p GetBankPayload
+	if err := json.Unmarshal(t.Payload, &p); err != nil {
+		return fmt.Errorf("Could not unmarshal json into payload: %w", err)
+	}
+
+	// get env variables
+	env, err := cfg.GetEnv()
+	if err != nil {
+		return fmt.Errorf("Could not load cfg: %w", err)
+	}
+
+	// get access token from plaid
+	pc := lib.NewPlaidClient(env)
+	bank, err := pc.GetBankName(p.AccessToken)
+	if err != nil {
+		return fmt.Errorf("Could not get bank name from plaid: %w", err)
+	}
+
+	// marshal new payload into json
+	jp, err := json.Marshal(UpdateBankRecordPayload{
+		LinkToken:   p.LinkToken,
+		AccessToken: p.AccessToken.Token,
+		ItemId:      p.AccessToken.ItemId,
+		Bank:        bank,
+	})
+	if err != nil {
+		return fmt.Errorf("Could not marshal struct into json: %w", err)
+	}
+
+	// enqueue new task
+	newTask := bgjobs.NewTask(TypeUpdateBank, jp)
+	c := bgjobs.NewClient(bgjobs.RedisOpts{Addr: Addr})
+	if _, err := c.Enqueue(newTask); err != nil {
+		return fmt.Errorf("Could not enqueue new task: %w", err)
+	}
+
 	return nil
+}
+
+type UpdateBankRecordPayload struct {
+	LinkToken   string `json:"linkToken"`
+	AccessToken string `json:"accessToken"`
+	ItemId      string `json:"itemId"`
+	Bank        string `json:"bank"`
 }
 
 func HandleUpdateBankTask(ctx context.Context, t bgjobs.Task) error {
