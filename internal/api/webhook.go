@@ -67,19 +67,14 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	publicToken := notif.PublicTokens[0]
 
-	// marshal payload into json
-	payload, err := json.Marshal(tasks.GetAccessTokenPayload{
-		PublicToken: publicToken,
-		LinkToken:   notif.LinkToken,
-	})
+	// create new background task and enqueue
+	newTask, err := tasks.NewGetAccessTokenTask(publicToken, notif.LinkToken)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("Could not marshal struct into json: %s\n", err.Error())
+		log.Println(err.Error())
 		return
 	}
 
-	// enqueue new task
-	newTask := bgjobs.NewTask(tasks.TypeGetAccessToken, payload)
 	c := bgjobs.NewClient(bgjobs.RedisOpts{Addr: Addr})
 	if _, err := c.Enqueue(newTask); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
