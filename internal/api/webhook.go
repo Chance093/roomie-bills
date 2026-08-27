@@ -2,8 +2,9 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
@@ -26,16 +27,14 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	// get payload and validate
 	raw, err := io.ReadAll(r.Body)
 	if err != nil {
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		log.Printf("error reading body: %s\n", err.Error())
+		writeError(w, http.StatusUnprocessableEntity, fmt.Errorf("error reading body: %w", err))
 		return
 	}
 	defer r.Body.Close()
 
 	var notif WebhookNotif
 	if err := json.Unmarshal(raw, &notif); err != nil {
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		log.Printf("error unmarshaling json: %s\n", err.Error())
+		writeError(w, http.StatusUnprocessableEntity, fmt.Errorf("error unmarshaling json: %w", err))
 		return
 	}
 
@@ -51,15 +50,13 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		ip = getHeaderCI(r.Header, "X-Forwarded-For")
 	}
 	if err := verifyWebhook(raw, ip, r.Header, s.pc); err != nil {
-		w.WriteHeader(http.StatusForbidden)
-		log.Printf("error verifying webhook: %s\n", err.Error())
+		writeError(w, http.StatusForbidden, fmt.Errorf("error verifying webhook: %w", err))
 		return
 	}
 
 	// validate and obtain public token from payload
 	if len(notif.PublicTokens) == 0 || notif.PublicTokens[0] == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		log.Println("no public token found")
+		writeError(w, http.StatusBadRequest, errors.New("no public token found"))
 		return
 	}
 	publicToken := notif.PublicTokens[0]
@@ -67,14 +64,12 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	// create new background task and enqueue
 	newTask, err := tasks.NewGetAccessTokenTask(publicToken, notif.LinkToken)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Println(err.Error())
+		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	if _, err := s.jc.Enqueue(newTask); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("Could not enqueue new task: %s\n", err.Error())
+		writeError(w, http.StatusInternalServerError, fmt.Errorf("Could not enqueue new task: %w", err))
 		return
 	}
 
