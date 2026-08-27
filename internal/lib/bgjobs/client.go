@@ -4,23 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"github.com/redis/go-redis/v9"
 )
 
-type RedisOpts struct {
-	Addr string
-}
-
 type Client struct {
-	RedisOpts
+	primeQ queue
 }
 
 func NewClient(opts RedisOpts) Client {
-	c := Client{opts}
+	rdb := initNewRDBClient(opts)
+	pq := newPrimaryQueue(rdb)
+
+	c := Client{pq}
 
 	return c
 }
+
+func (c Client) Close() { c.primeQ.rdb.Close() }
 
 type TaskInfo struct {
 	Id    string
@@ -38,17 +37,10 @@ func (c Client) Enqueue(task *Task, opts ...any) (TaskInfo, error) {
 	}
 
 	// push to redis message queue
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     c.Addr,
-		Password: "", // no password
-		DB:       0,  // use default DB
-		Protocol: 2,
-	})
-	ctx := context.Background()
-
-	if _, err := rdb.LPush(ctx, Queue, jTask).Result(); err != nil {
+	ctx := context.TODO()
+	if err := c.primeQ.enqueue(ctx, jTask); err != nil {
 		return TaskInfo{}, fmt.Errorf("Failed to enqueue task: %w", err)
 	}
 
-	return TaskInfo{Id: task.Id, Queue: Queue}, nil
+	return TaskInfo{Id: task.Id, Queue: c.primeQ.name}, nil
 }

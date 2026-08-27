@@ -7,43 +7,51 @@ import (
 	"math"
 	"sync"
 	"time"
-
-	"github.com/redis/go-redis/v9"
 )
+
+type Server struct {
+	cfg    ServerConfig
+	primeQ queue
+	tempQ  queue
+	dlq    queue
+}
 
 type ServerConfig struct {
 	Concurrency int
-	MaxTimeout  string
+	MaxTimeout  time.Duration
 }
-
-type Server struct {
-	RedisOpts
-	cfg ServerConfig
-}
-
-type Handler func(context.Context, Task) error
 
 // set options to server
 func NewServer(opts RedisOpts, cfg ServerConfig) Server {
-	return Server{opts, cfg}
+	rdb := initNewRDBClient(opts)
+	pq := newPrimaryQueue(rdb)
+	tq := newTempQueue(rdb)
+	dlq := newDLQ(rdb)
+
+	// set default cfg
+	if cfg.Concurrency == 0 {
+		cfg.Concurrency = 1
+	}
+	if cfg.MaxTimeout == time.Duration(0) {
+		cfg.MaxTimeout = time.Duration(10 * time.Second)
+	}
+
+	return Server{cfg, pq, tq, dlq}
 }
 
 // continuously tries to pop off queue until task shows up,
 // then it will look up the task name in the multiplexer and
 // get the handler to run
 func (s *Server) Run(mux *ServeMux) {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     s.Addr,
-		Password: "", // no password
-		DB:       0,  // use default DB
-		Protocol: 2,
-	})
+	defer s.primeQ.rdb.Close()
+	defer s.tempQ.rdb.Close()
+	defer s.dlq.rdb.Close()
 
 	// run multiple workers concurrently
 	var wg sync.WaitGroup
 	for i := 1; i <= s.cfg.Concurrency; i++ {
 		wg.Go(func() {
-			worker(mux, rdb)
+			s.worker(mux)
 		})
 	}
 
@@ -51,15 +59,15 @@ func (s *Server) Run(mux *ServeMux) {
 }
 
 // TODO: error logging
-func worker(mux *ServeMux, rdb *redis.Client) error {
+func (s *Server) worker(mux *ServeMux) error {
 OUTER:
 	for {
-		ctx := context.Background()
+		ctx := context.TODO()
 
 		// dequeue task (blocking) and move to temp queue (reliable queue)
-		raw, err := rdb.BLMove(ctx, Queue, Temp, "RIGHT", "LEFT", time.Duration(0)).Result()
+		raw, err := s.primeQ.popAndMoveTo(ctx, s.tempQ)
 		if err != nil {
-			return fmt.Errorf("Failed to dequeue: %w", err)
+			return fmt.Errorf("Failed to dequeue and move to temp queue: %w", err)
 		}
 
 		// unmarshall json into Task struct
@@ -84,7 +92,7 @@ OUTER:
 			err := h(ctx, t)
 			if err == nil {
 				// on success, remove task from temp queue
-				if _, err := rdb.LRem(ctx, Temp, 0, raw).Result(); err != nil {
+				if err := s.tempQ.remove(ctx, raw); err != nil {
 					return fmt.Errorf("Failed to remove task from temp queue: %w\n", err)
 				}
 				continue OUTER
@@ -98,68 +106,15 @@ OUTER:
 			}
 		}
 
-		// remove from temp queue and add to DLQ if retries run out
-		if _, err := rdb.LRem(ctx, Temp, 0, raw).Result(); err != nil {
-			return fmt.Errorf("Failed to remove task from temp queue: %w\n", err)
-		}
-
-		if err := sendToDLQ(ctx, rdb, t, errMessages); err != nil {
+		// add to DLQ if retries run out and remove from temp queue
+		if err := sendToDLQ(ctx, s.dlq, t, errMessages); err != nil {
 			newErr := fmt.Errorf("Failed to send task to DLQ: %w\n", err)
 			fmt.Println(newErr)
 			return newErr
 		}
+
+		if err := s.tempQ.remove(ctx, raw); err != nil {
+			return fmt.Errorf("Failed to remove task from temp queue: %w\n", err)
+		}
 	}
-}
-
-type DeadLetter struct {
-	Task
-	Err       []string  `json:"err"`
-	CreatedAt time.Time `json:"createdAt"`
-}
-
-func sendToDLQ(ctx context.Context, rdb *redis.Client, t Task, e []string) error {
-	dl := DeadLetter{
-		Task:      t,
-		Err:       e,
-		CreatedAt: time.Now(),
-	}
-
-	// marshall struct into json
-	jdl, err := json.Marshal(dl)
-	if err != nil {
-		return fmt.Errorf("Failed to marshal dl into json: %w", err)
-	}
-
-	// send to DLQ
-	if _, err := rdb.LPush(ctx, DLQ, jdl).Result(); err != nil {
-		return fmt.Errorf("Failed to enqueue to DLQ: %w", err)
-	}
-
-	return nil
-}
-
-// multiplexer that maps task names to task handlers
-type ServeMux struct {
-	m map[string]Handler
-}
-
-// return ServeMux struct
-func NewServeMux() *ServeMux {
-	return &ServeMux{
-		m: make(map[string]Handler),
-	}
-}
-
-// maps task name to a task handler
-func (m *ServeMux) HandleFunc(taskType string, handler Handler) {
-	m.m[taskType] = handler
-}
-
-func (m *ServeMux) getHandler(taskType string) (Handler, error) {
-	h, ok := m.m[taskType]
-	if !ok {
-		return nil, fmt.Errorf("Handler does not exist for task type: %s", taskType)
-	}
-
-	return h, nil
 }
