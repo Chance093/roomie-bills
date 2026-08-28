@@ -72,7 +72,16 @@ func initDB() (*sql.DB, error) {
 		account_id INTEGER NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );`
+  );
+
+	CREATE TABLE IF NOT EXISTS payments (
+		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+		roomie_id INTEGER NOT NULL,
+		bill_id INTEGER NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+	`
 
 	_, err = db.Exec(sqlStmt)
 	if err != nil {
