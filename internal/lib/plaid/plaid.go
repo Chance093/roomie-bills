@@ -116,3 +116,34 @@ func (c Client) GetBankName(ctx context.Context, accessToken AccessToken) (strin
 
 	return institution, nil
 }
+
+type Account struct {
+	PlaidId string
+	Name    string
+	Type    string
+}
+
+func (c Client) GetAccounts(ctx context.Context, accessToken string) ([]Account, error) {
+	accountsGetRequest := plaid.NewAccountsGetRequest(accessToken)
+
+	accountsGetResp, _, err := c.client.PlaidApi.AccountsGet(ctx).AccountsGetRequest(
+		*accountsGetRequest,
+	).Execute()
+	if err != nil {
+		return nil, err
+	}
+
+	// parse through accounts and get relevant data
+	rawAccs := accountsGetResp.GetAccounts()
+
+	accounts := make([]Account, len(rawAccs))
+	for i, acc := range rawAccs {
+		plaidId := acc.GetAccountId()
+		name := acc.GetName()
+		accType := string(acc.GetSubtype())
+
+		accounts[i] = Account{plaidId, name, accType}
+	}
+
+	return accounts, err
+}
