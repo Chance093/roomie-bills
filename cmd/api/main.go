@@ -12,10 +12,7 @@ import (
 	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
 )
 
-const (
-	port = "8080"
-	Addr = "127.0.0.1:6379"
-)
+const port = "8080"
 
 func main() {
 	// init everything
@@ -24,7 +21,8 @@ func main() {
 		log.Fatalf("Could not get env variables: %s\n", err.Error())
 	}
 	pc := lib.NewPlaidClient(env)
-	jc := bgjobs.NewClient(bgjobs.RedisOpts{Addr: Addr})
+	jc := bgjobs.NewClient(bgjobs.RedisOpts{})
+	defer jc.Close()
 	db := db.NewDB()
 	defer db.Close()
 

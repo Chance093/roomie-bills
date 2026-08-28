@@ -11,8 +11,6 @@ import (
 	"github.com/Chance093/roomie-bills/internal/tasks"
 )
 
-const Addr = "127.0.0.1:6379"
-
 type WebhookNotif struct {
 	WebhookType   string   `json:"webhook_type"`
 	WebhookCode   string   `json:"webhook_code"`
