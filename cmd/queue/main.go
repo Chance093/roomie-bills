@@ -5,8 +5,8 @@ import (
 
 	"github.com/Chance093/roomie-bills/internal/cfg"
 	"github.com/Chance093/roomie-bills/internal/db"
-	"github.com/Chance093/roomie-bills/internal/lib"
 	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
+	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 	"github.com/Chance093/roomie-bills/internal/tasks"
 )
 
@@ -17,7 +17,7 @@ func main() {
 		log.Fatalf("Could not get env variables: %s\n", err.Error())
 	}
 
-	pc := lib.NewPlaidClient(env)
+	pc := plaid.NewClient(env)
 
 	redisOpts := bgjobs.RedisOpts{}
 	jc := bgjobs.NewClient(redisOpts)

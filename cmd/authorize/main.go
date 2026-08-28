@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"github.com/Chance093/roomie-bills/internal/cfg"
 	"github.com/Chance093/roomie-bills/internal/db"
 	"github.com/Chance093/roomie-bills/internal/lib"
+	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 	"github.com/Chance093/roomie-bills/internal/utils"
 )
 
@@ -27,8 +29,9 @@ func main() {
 	}
 
 	// get hosted link from plaid
-	pc := lib.NewPlaidClient(env)
-	hostedLink, err := pc.GetHostedLink(roomie, env)
+	pc := plaid.NewClient(env)
+	ctx := context.TODO()
+	hostedLink, err := pc.GetHostedLink(ctx, roomie)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -36,6 +39,7 @@ func main() {
 	// save hosted link info to db
 	db := db.NewDB()
 	defer db.Close()
+
 	if err := db.AddHostedLink(roomie, hostedLink.LinkToken); err != nil {
 		log.Fatal(err)
 	}
@@ -77,4 +81,3 @@ func getRoomieName(stdin *os.File) (string, error) {
 
 	return "", errors.New("This part of function unreachable")
 }
-

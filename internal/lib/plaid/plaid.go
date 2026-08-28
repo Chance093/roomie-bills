@@ -1,6 +1,4 @@
-package lib
-
-// TODO: Turn this into its own package. lib -> plaid
+package plaid
 
 import (
 	"context"
@@ -9,24 +7,24 @@ import (
 	"github.com/plaid/plaid-go/v43/plaid"
 )
 
-type PlaidClient struct {
+// TODO: create documentation for this package
+
+type Client struct {
 	client *plaid.APIClient
-	ctx    context.Context
+	env    map[string]string
 }
 
-func NewPlaidClient(env map[string]string) PlaidClient {
+func NewClient(env map[string]string) Client {
 	configuration := plaid.NewConfiguration()
 	configuration.AddDefaultHeader("PLAID-CLIENT-ID", env["PLAID_CLIENT_ID"])
 	configuration.AddDefaultHeader("PLAID-SECRET", env["PLAID_SANDBOX_SECRET"])
 	configuration.UseEnvironment(plaid.Sandbox)
 	client := plaid.NewAPIClient(configuration)
-	ctx := context.Background()
 
-	return PlaidClient{client, ctx}
+	return Client{client, env}
 }
 
-func (pc *PlaidClient) GetNewTransactions() {
-}
+func (c Client) GetNewTransactions() {}
 
 type HostedLink struct {
 	LinkToken string
@@ -34,7 +32,8 @@ type HostedLink struct {
 	RequestId string
 }
 
-func (pc *PlaidClient) GetHostedLink(roomie string, env map[string]string) (HostedLink, error) {
+func (c Client) GetHostedLink(ctx context.Context, roomie string) (HostedLink, error) {
+	// init hosted link config
 	user := plaid.LinkTokenCreateRequestUser{
 		ClientUserId: roomie,
 	}
@@ -56,8 +55,9 @@ func (pc *PlaidClient) GetHostedLink(roomie string, env map[string]string) (Host
 		[]plaid.CountryCode{plaid.COUNTRYCODE_US},
 	)
 	hosted := plaid.LinkTokenCreateHostedLink{}
-	webhookUrl := fmt.Sprintf("%s/webhooks/plaid", env["DOMAIN"])
+	webhookUrl := fmt.Sprintf("%s/webhooks/plaid", c.env["DOMAIN"])
 
+	// set config in request
 	request.SetProducts([]plaid.Products{plaid.PRODUCTS_TRANSACTIONS})
 	request.SetLinkCustomizationName("default")
 	request.SetWebhook(webhookUrl)
@@ -65,16 +65,14 @@ func (pc *PlaidClient) GetHostedLink(roomie string, env map[string]string) (Host
 	request.SetHostedLink(hosted)
 	request.SetUser(user)
 
-	linkTokenCreateResp, _, err := pc.client.PlaidApi.LinkTokenCreate(pc.ctx).LinkTokenCreateRequest(*request).Execute()
+	// send request to plaid
+	linkTokenCreateResp, _, err := c.client.PlaidApi.LinkTokenCreate(ctx).LinkTokenCreateRequest(*request).Execute()
 	if err != nil {
 		return HostedLink{}, err
 	}
-
 	linkToken := linkTokenCreateResp.GetLinkToken()
 	hostedLink := linkTokenCreateResp.GetHostedLinkUrl()
 	requestId := linkTokenCreateResp.GetRequestId()
-
-	fmt.Printf("Hosted link obtained: %s\n", hostedLink)
 
 	return HostedLink{
 		LinkToken: linkToken,
@@ -83,34 +81,14 @@ func (pc *PlaidClient) GetHostedLink(roomie string, env map[string]string) (Host
 	}, nil
 }
 
-var jwkCache = map[string]*plaid.JWKPublicKey{}
-
-func (pc *PlaidClient) GetJWK(kid string) (*plaid.JWKPublicKey, error) {
-	if key, ok := jwkCache[kid]; ok && key != nil {
-		return key, nil
-	}
-	req := *plaid.NewWebhookVerificationKeyGetRequest(kid)
-	resp, _, err := pc.client.PlaidApi.WebhookVerificationKeyGet(pc.ctx).
-		WebhookVerificationKeyGetRequest(req).
-		Execute()
-	if err != nil {
-		return nil, err
-	}
-	key := resp.GetKey()
-	if key.Kid == kid {
-		jwkCache[kid] = &key
-	}
-	return &key, nil
-}
-
 type AccessToken struct {
 	Token  string `json:"token"`
 	ItemId string `json:"itemId"`
 }
 
-func (pc *PlaidClient) GetAccessToken(publicToken string) (AccessToken, error) {
+func (c Client) GetAccessToken(ctx context.Context, publicToken string) (AccessToken, error) {
 	exchangePublicTokenReq := plaid.NewItemPublicTokenExchangeRequest(publicToken)
-	exchangePublicTokenResp, _, err := pc.client.PlaidApi.ItemPublicTokenExchange(pc.ctx).ItemPublicTokenExchangeRequest(
+	exchangePublicTokenResp, _, err := c.client.PlaidApi.ItemPublicTokenExchange(ctx).ItemPublicTokenExchangeRequest(
 		*exchangePublicTokenReq,
 	).Execute()
 	if err != nil {
@@ -126,9 +104,9 @@ func (pc *PlaidClient) GetAccessToken(publicToken string) (AccessToken, error) {
 	}, nil
 }
 
-func (pc *PlaidClient) GetBankName(accessToken AccessToken) (string, error) {
+func (c Client) GetBankName(ctx context.Context, accessToken AccessToken) (string, error) {
 	request := plaid.NewItemGetRequest(accessToken.Token)
-	resp, _, err := pc.client.PlaidApi.ItemGet(pc.ctx).ItemGetRequest(*request).Execute()
+	resp, _, err := c.client.PlaidApi.ItemGet(ctx).ItemGetRequest(*request).Execute()
 	if err != nil {
 		return "", err
 	}

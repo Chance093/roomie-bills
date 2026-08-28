@@ -6,17 +6,17 @@ import (
 	"fmt"
 
 	"github.com/Chance093/roomie-bills/internal/db"
-	"github.com/Chance093/roomie-bills/internal/lib"
 	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
+	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 )
 
 type Handler struct {
-	pc lib.PlaidClient
+	pc plaid.Client
 	jc bgjobs.Client
 	db *db.DB
 }
 
-func NewHandler(pc lib.PlaidClient, jc bgjobs.Client, db *db.DB) Handler {
+func NewHandler(pc plaid.Client, jc bgjobs.Client, db *db.DB) Handler {
 	return Handler{pc, jc, db}
 }
 
@@ -28,7 +28,7 @@ func (h Handler) GetAccessToken(ctx context.Context, t bgjobs.Task) error {
 	}
 
 	// get access token from plaid
-	accessToken, err := h.pc.GetAccessToken(payload.PublicToken)
+	accessToken, err := h.pc.GetAccessToken(ctx, payload.PublicToken)
 	if err != nil {
 		return fmt.Errorf("Could not get access token: %w", err)
 	}
@@ -54,7 +54,7 @@ func (h Handler) GetBankName(ctx context.Context, t bgjobs.Task) error {
 	}
 
 	// get bank name from plaid
-	bank, err := h.pc.GetBankName(payload.AccessToken)
+	bank, err := h.pc.GetBankName(ctx, payload.AccessToken)
 	if err != nil {
 		return fmt.Errorf("Could not get bank name from plaid: %w", err)
 	}

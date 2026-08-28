@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/Chance093/roomie-bills/internal/lib"
+	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -155,7 +155,7 @@ func (db *DB) AccessTokenExists(accessToken string) (bool, error) {
 	}
 }
 
-func (db *DB) UpdateBankRecord(linkToken, bankName string, accessToken lib.AccessToken) error {
+func (db *DB) UpdateBankRecord(linkToken, bankName string, accessToken plaid.AccessToken) error {
 	// TODO: use current timestamp for updated_at
 	sqlStatement := `
 	UPDATE banks 

@@ -8,8 +8,8 @@ import (
 	"github.com/Chance093/roomie-bills/internal/api"
 	"github.com/Chance093/roomie-bills/internal/cfg"
 	"github.com/Chance093/roomie-bills/internal/db"
-	"github.com/Chance093/roomie-bills/internal/lib"
 	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
+	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 )
 
 const port = "8080"
@@ -20,7 +20,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Could not get env variables: %s\n", err.Error())
 	}
-	pc := lib.NewPlaidClient(env)
+	pc := plaid.NewClient(env)
 	jc := bgjobs.NewClient(bgjobs.RedisOpts{})
 	defer jc.Close()
 	db := db.NewDB()

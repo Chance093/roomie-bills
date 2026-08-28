@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/Chance093/roomie-bills/internal/cfg"
-	"github.com/Chance093/roomie-bills/internal/lib"
+	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 )
 
 func main() {
@@ -14,7 +14,7 @@ func main() {
 	}
 
 	// get transactions from plaid
-	pc := lib.NewPlaidClient(env)
+	pc := plaid.NewClient(env)
 	pc.GetNewTransactions()
 
 	// get transactions from db

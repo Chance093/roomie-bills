@@ -4,21 +4,21 @@ import (
 	"net/http"
 
 	"github.com/Chance093/roomie-bills/internal/db"
-	"github.com/Chance093/roomie-bills/internal/lib"
 	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
+	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 )
 
 type Server struct {
 	Router *http.ServeMux
 	Addr   string
 	DB     *db.DB
-	pc     lib.PlaidClient
+	pc     plaid.Client
 	jc     bgjobs.Client
 }
 
 // NewServer intializes a server, sets up routes, and allows database access
 // to all handlers associated with that server.
-func NewServer(port string, pc lib.PlaidClient, jc bgjobs.Client, db *db.DB) *Server {
+func NewServer(port string, pc plaid.Client, jc bgjobs.Client, db *db.DB) *Server {
 	// init server
 	s := &Server{
 		Router: http.NewServeMux(),

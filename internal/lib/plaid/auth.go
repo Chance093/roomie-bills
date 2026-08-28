@@ -1,6 +1,7 @@
-package api
+package plaid
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/sha256"
@@ -13,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Chance093/roomie-bills/internal/lib"
+	"github.com/Chance093/roomie-bills/internal/utils"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/plaid/plaid-go/v43/plaid"
 )
@@ -23,7 +24,7 @@ var (
 	validIPs = [4]string{"52.21.26.131", "52.21.47.157", "52.41.247.19", "52.88.82.239"}
 )
 
-func verifyWebhook(webhookBody []byte, ip string, headers map[string][]string, pc lib.PlaidClient) error {
+func (c Client) VerifyWebhook(ctx context.Context, body []byte, ip string, headers map[string][]string) error {
 	if !strings.Contains(ip, validIPs[0]) &&
 		!strings.Contains(ip, validIPs[1]) &&
 		!strings.Contains(ip, validIPs[2]) &&
@@ -31,7 +32,7 @@ func verifyWebhook(webhookBody []byte, ip string, headers map[string][]string, p
 		return fmt.Errorf("not a valid ip address: %s", ip)
 	}
 
-	tokenString := getHeaderCI(headers, "Plaid-Verification")
+	tokenString := utils.GetHeaderCI(headers, "Plaid-Verification")
 	if tokenString == "" {
 		return errors.New("missing Plaid-Verification header")
 	}
@@ -49,7 +50,7 @@ func verifyWebhook(webhookBody []byte, ip string, headers map[string][]string, p
 		}
 
 		// Get verification key for kid via /webhook_verification_key/get
-		jwk, err := pc.GetJWK(kid)
+		jwk, err := c.getJWK(ctx, kid)
 		if err != nil {
 			return nil, fmt.Errorf("get JWK: %w", err)
 		}
@@ -87,13 +88,34 @@ func verifyWebhook(webhookBody []byte, ip string, headers map[string][]string, p
 	if !ok || wantHash == "" {
 		return errors.New("missing request_body_sha256")
 	}
-	sum := sha256.Sum256(webhookBody)
+	sum := sha256.Sum256(body)
 	gotHex := strings.ToLower(hex.EncodeToString(sum[:]))
 	if subtle.ConstantTimeCompare([]byte(gotHex), []byte(strings.ToLower(wantHash))) != 1 {
 		return errors.New("body hash mismatch")
 	}
 
 	return nil
+}
+
+// TODO: convert this to redis
+var jwkCache = map[string]*plaid.JWKPublicKey{}
+
+func (c *Client) getJWK(ctx context.Context, kid string) (*plaid.JWKPublicKey, error) {
+	if key, ok := jwkCache[kid]; ok && key != nil {
+		return key, nil
+	}
+	req := plaid.NewWebhookVerificationKeyGetRequest(kid)
+	resp, _, err := c.client.PlaidApi.WebhookVerificationKeyGet(ctx).
+		WebhookVerificationKeyGetRequest(*req).
+		Execute()
+	if err != nil {
+		return nil, err
+	}
+	key := resp.GetKey()
+	if key.Kid == kid {
+		jwkCache[kid] = &key
+	}
+	return &key, nil
 }
 
 // helper method
@@ -115,14 +137,4 @@ func jwkToECDSAPublicKey(jwk *plaid.JWKPublicKey) (*ecdsa.PublicKey, error) {
 		X:     new(big.Int).SetBytes(xBytes),
 		Y:     new(big.Int).SetBytes(yBytes),
 	}, nil
-}
-
-func getHeaderCI(h map[string][]string, name string) string {
-	lname := strings.ToLower(name)
-	for k, v := range h {
-		if strings.ToLower(k) == lname {
-			return v[0]
-		}
-	}
-	return ""
 }

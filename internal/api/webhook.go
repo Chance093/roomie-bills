@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Chance093/roomie-bills/internal/tasks"
+	"github.com/Chance093/roomie-bills/internal/utils"
 )
 
 type WebhookNotif struct {
@@ -45,9 +47,10 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	// validate jwt, ip, and payload hash
 	ip := r.RemoteAddr
 	if strings.Contains(ip, "[::1]") { // ngrok
-		ip = getHeaderCI(r.Header, "X-Forwarded-For")
+		ip = utils.GetHeaderCI(r.Header, "X-Forwarded-For")
 	}
-	if err := verifyWebhook(raw, ip, r.Header, s.pc); err != nil {
+	ctx := context.TODO()
+	if err := s.pc.VerifyWebhook(ctx, raw, ip, r.Header); err != nil {
 		writeError(w, http.StatusForbidden, fmt.Errorf("error verifying webhook: %w", err))
 		return
 	}

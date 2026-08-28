@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/Chance093/roomie-bills/internal/lib"
 	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
+	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 )
 
 const (
@@ -20,7 +20,7 @@ type GetAccessTokenPayload struct {
 }
 
 type GetBankPayload struct {
-	AccessToken lib.AccessToken `json:"accessToken"`
+	AccessToken plaid.AccessToken `json:"accessToken"`
 	LinkToken   string          `json:"linkToken"`
 }
 
@@ -47,7 +47,7 @@ func NewGetAccessTokenTask(publicToken, linkToken string) (*bgjobs.Task, error) 
 	return newTask(v, TypeGetAccessToken)
 }
 
-func NewGetBankTask(accessToken lib.AccessToken, linkToken string) (*bgjobs.Task, error) {
+func NewGetBankTask(accessToken plaid.AccessToken, linkToken string) (*bgjobs.Task, error) {
 	v := GetBankPayload{
 		AccessToken: accessToken,
 		LinkToken:   linkToken,
@@ -56,7 +56,7 @@ func NewGetBankTask(accessToken lib.AccessToken, linkToken string) (*bgjobs.Task
 	return newTask(v, TypeGetBank)
 }
 
-func NewUpdateBankTask(accessToken lib.AccessToken, linkToken, bank string) (*bgjobs.Task, error) {
+func NewUpdateBankTask(accessToken plaid.AccessToken, linkToken, bank string) (*bgjobs.Task, error) {
 	v := UpdateBankPayload{
 		GetBankPayload: GetBankPayload{
 			AccessToken: accessToken,
