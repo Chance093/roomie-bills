@@ -168,7 +168,5 @@ func (db *DB) UpdateBankRecord(linkToken, bankName string, accessToken lib.Acces
 		return err
 	}
 
-	fmt.Println("updated bank record")
-
 	return nil
 }
