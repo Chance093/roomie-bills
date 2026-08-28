@@ -34,6 +34,8 @@ func main() {
 	mux.HandleFunc(tasks.TypeGetAccessToken, handler.GetAccessToken)
 	mux.HandleFunc(tasks.TypeGetBank, handler.GetBankName)
 	mux.HandleFunc(tasks.TypeUpdateBank, handler.UpdateBank)
+	mux.HandleFunc(tasks.TypeGetAccounts, handler.GetAccounts)
+	mux.HandleFunc(tasks.TypeAddAccounts, handler.AddAccounts)
 
 	// spin up workers
 	srv.Run(mux)

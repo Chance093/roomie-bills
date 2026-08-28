@@ -12,6 +12,8 @@ const (
 	TypeGetAccessToken = "get:accessToken"
 	TypeGetBank        = "get:bank"
 	TypeUpdateBank     = "update:bank"
+	TypeGetAccounts    = "get:accounts"
+	TypeAddAccounts    = "add:accounts"
 )
 
 type GetAccessTokenPayload struct {
@@ -21,12 +23,22 @@ type GetAccessTokenPayload struct {
 
 type GetBankPayload struct {
 	AccessToken plaid.AccessToken `json:"accessToken"`
-	LinkToken   string          `json:"linkToken"`
+	LinkToken   string            `json:"linkToken"`
 }
 
 type UpdateBankPayload struct {
 	GetBankPayload
 	Bank string `json:"bank"`
+}
+
+type GetAccountsPayload struct {
+	BankId      int
+	AccessToken string
+}
+
+type AddAccountsPayload struct {
+	BankId   int
+	Accounts []plaid.Account
 }
 
 func newTask(v any, taskType string) (*bgjobs.Task, error) {
@@ -66,4 +78,22 @@ func NewUpdateBankTask(accessToken plaid.AccessToken, linkToken, bank string) (*
 	}
 
 	return newTask(v, TypeUpdateBank)
+}
+
+func NewGetAccountsTask(accessToken string, bankId int) (*bgjobs.Task, error) {
+	v := GetAccountsPayload{
+		AccessToken: accessToken,
+		BankId:      bankId,
+	}
+
+	return newTask(v, TypeGetAccounts)
+}
+
+func NewAddAccountsTask(accounts []plaid.Account, bankId int) (*bgjobs.Task, error) {
+	v := AddAccountsPayload{
+		Accounts: accounts,
+		BankId:   bankId,
+	}
+
+	return newTask(v, TypeAddAccounts)
 }

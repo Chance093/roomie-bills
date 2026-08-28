@@ -87,8 +87,61 @@ func (h Handler) UpdateBank(ctx context.Context, t bgjobs.Task) error {
 	}
 
 	// update bank record
-	if err := h.db.UpdateBankRecord(payload.LinkToken, payload.Bank, payload.AccessToken); err != nil {
+	bankId, err := h.db.UpdateBankRecord(payload.LinkToken, payload.Bank, payload.AccessToken)
+	if err != nil {
 		return fmt.Errorf("Could not update bank record: %w", err)
+	}
+
+	// create new task and enqueue
+	newTask, err := NewGetAccountsTask(payload.AccessToken.Token, bankId)
+	if err != nil {
+		return err
+	}
+
+	if _, err := h.jc.Enqueue(newTask); err != nil {
+		return fmt.Errorf("Could not enqueue new task: %w", err)
+	}
+
+	return nil
+}
+
+func (h Handler) GetAccounts(ctx context.Context, t bgjobs.Task) error {
+	// get payload
+	var payload GetAccountsPayload
+	if err := json.Unmarshal(t.Payload, &payload); err != nil {
+		return fmt.Errorf("Could not unmarshal json into payload: %w", err)
+	}
+
+	// get accounts associated with bank
+	accounts, err := h.pc.GetAccounts(ctx, payload.AccessToken)
+	if err != nil {
+		return fmt.Errorf("Could not get accounts from plaid: %w", err)
+	}
+
+	// create new task and enqueue
+	newTask, err := NewAddAccountsTask(accounts, payload.BankId)
+	if err != nil {
+		return err
+	}
+
+	if _, err := h.jc.Enqueue(newTask); err != nil {
+		return fmt.Errorf("Could not enqueue new task: %w", err)
+	}
+
+	return nil
+}
+
+func (h Handler) AddAccounts(ctx context.Context, t bgjobs.Task) error {
+	// get payload
+	var payload AddAccountsPayload
+	if err := json.Unmarshal(t.Payload, &payload); err != nil {
+		return fmt.Errorf("Could not unmarshal json into payload: %w", err)
+	}
+
+	// TODO: do idempotency check
+
+	if err := h.db.AddAccounts(payload.Accounts, payload.BankId); err != nil {
+		return fmt.Errorf("Could not add accounts to db: %w", err)
 	}
 
 	return nil
