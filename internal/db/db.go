@@ -22,6 +22,18 @@ func NewDB() *DB {
 	return &DB{db}
 }
 
+type AccountSubtype string
+
+const (
+	ACCOUNTSUBTYPE_CHECKING    AccountSubtype = "checking"
+	ACCOUNTSUBTYPE_CREDIT_CARD AccountSubtype = "credit card"
+	ACCOUNTSUBTYPE_SAVINGS     AccountSubtype = "savings"
+)
+
+var accountTypes = []AccountSubtype{
+	ACCOUNTSUBTYPE_CHECKING, ACCOUNTSUBTYPE_CREDIT_CARD, ACCOUNTSUBTYPE_SAVINGS,
+}
+
 func initDB() (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", "./test.db")
 	if err != nil {
@@ -90,9 +102,21 @@ func initDB() (*sql.DB, error) {
 
 	createAccountTypes := `
   INSERT OR IGNORE INTO account_types (name)
-  VALUES ("Checking"), ("Savings"), ("Credit");
+  VALUES (?), (?), (?);
   `
-	_, err = db.Exec(createAccountTypes)
+
+	// converts slice of AccountSubtype to slice of any for variadic db.Exec()
+	convertToAny := func(types []AccountSubtype) []any {
+		res := make([]any, len(types))
+
+		for i, v := range types {
+			res[i] = v
+		}
+
+		return res
+	}
+
+	_, err = db.Exec(createAccountTypes, convertToAny(accountTypes)...)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +188,7 @@ func (db *DB) AccessTokenExists(accessToken string) (bool, error) {
 	}
 }
 
-func (db *DB) UpdateBankRecord(linkToken, bankName string, accessToken plaid.AccessToken) error {
+func (db *DB) UpdateBankRecord(linkToken, bankName string, accessToken plaid.AccessToken) (int, error) {
 	// TODO: use current timestamp for updated_at
 	sqlStatement := `
 	UPDATE banks 
@@ -172,10 +196,74 @@ func (db *DB) UpdateBankRecord(linkToken, bankName string, accessToken plaid.Acc
 	WHERE link_token = ?;
 	`
 
-	_, err := db.Exec(sqlStatement, accessToken.Token, accessToken.ItemId, bankName, linkToken)
+	if _, err := db.Exec(sqlStatement, accessToken.Token, accessToken.ItemId, bankName, linkToken); err != nil {
+		return 0, err
+	}
+
+	// get bank id of recently updated bank
+	sqlQuery := `
+	SELECT id FROM banks WHERE access_token = ?;
+	`
+	var bankId int
+	if err := db.QueryRow(sqlQuery, accessToken.Token).Scan(&bankId); err != nil {
+		return 0, fmt.Errorf("Error querying bank id and scanning row: %w", err)
+	}
+
+	return bankId, nil
+}
+
+func (db *DB) AddAccounts(accounts []plaid.Account, bankId int) error {
+	// get account types and type id's
+	typesMap, err := db.getAccountTypes()
 	if err != nil {
-		return err
+		return fmt.Errorf("Could not get account types map: %w", err)
+	}
+
+	sqlInsert := `
+	INSERT INTO accounts (plaid_id, name, type_id, bank_id) VALUES (?, ?, ?, ?);
+	`
+
+	// TODO: make this concurrent
+	for _, acc := range accounts {
+		if _, err := db.Exec(sqlInsert, acc.PlaidId, acc.Name, typesMap[acc.Type], bankId); err != nil {
+			return fmt.Errorf("Error adding accounts in db: %w", err)
+		}
 	}
 
 	return nil
+}
+
+type AccountType struct {
+	Id   int
+	Name string
+}
+
+type AccountTypeToId map[string]int
+
+func (db *DB) getAccountTypes() (AccountTypeToId, error) {
+	sqlQuery := `
+	SELECT id, name FROM account_types;
+	`
+
+	rows, err := db.Query(sqlQuery)
+	if err != nil {
+		return nil, fmt.Errorf("Error querying account types: %w", err)
+	}
+	defer rows.Close()
+
+	m := make(AccountTypeToId)
+	for rows.Next() {
+		var at AccountType
+		if err := rows.Scan(&at.Id, &at.Name); err != nil {
+			return nil, fmt.Errorf("Failed to scan row: %w", err) // TODO: better error handling
+		}
+
+		m[at.Name] = at.Id
+	}
+
+	if err = rows.Err(); err != nil {
+		return m, fmt.Errorf("Error while iterating through rows: %w", err)
+	}
+
+	return m, nil
 }
