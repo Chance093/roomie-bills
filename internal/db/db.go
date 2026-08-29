@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 	_ "github.com/mattn/go-sqlite3"
@@ -44,8 +45,8 @@ func initDB() (*sql.DB, error) {
 	CREATE TABLE IF NOT EXISTS roomies (
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL UNIQUE,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
 	);
 
 	CREATE TABLE IF NOT EXISTS banks (
@@ -55,15 +56,15 @@ func initDB() (*sql.DB, error) {
 		name TEXT,
 		access_token TEXT UNIQUE,
 		roomie_id INTEGER NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
 	);
 
   CREATE TABLE IF NOT EXISTS account_types (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
   );
 
 	CREATE TABLE IF NOT EXISTS accounts (
@@ -72,8 +73,8 @@ func initDB() (*sql.DB, error) {
 		name TEXT NOT NULL,
 		type_id INTEGER NOT NULL,
 		bank_id INTEGER NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
 	);
 
 	CREATE TABLE IF NOT EXISTS bills (
@@ -82,16 +83,16 @@ func initDB() (*sql.DB, error) {
 		date DATETIME NOT NULL,
 		total INTEGER NOT NULL,
 		account_id INTEGER NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
   );
 
 	CREATE TABLE IF NOT EXISTS payments (
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 		roomie_id INTEGER NOT NULL,
 		bill_id INTEGER NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
 	);
 	`
 
@@ -101,31 +102,37 @@ func initDB() (*sql.DB, error) {
 	}
 
 	createAccountTypes := `
-  INSERT OR IGNORE INTO account_types (name)
-  VALUES (?), (?), (?);
+  INSERT OR IGNORE INTO account_types (name, created_at, updated_at)
+  VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?);
   `
 
 	// converts slice of AccountSubtype to slice of any for variadic db.Exec()
-	convertToAny := func(types []AccountSubtype) []any {
-		res := make([]any, len(types))
+	convertToArgs := func(types []AccountSubtype) []any {
+		res := make([]any, len(types)*3)
 
 		for i, v := range types {
-			res[i] = v
+			res[i*3] = v
+			res[i*3+1] = time.Now()
+			res[i*3+2] = time.Now()
 		}
 
 		return res
 	}
 
-	_, err = db.Exec(createAccountTypes, convertToAny(accountTypes)...)
+	_, err = db.Exec(createAccountTypes, convertToArgs(accountTypes)...)
 	if err != nil {
 		return nil, err
 	}
 
 	createRoomies := `
-	INSERT OR IGNORE INTO roomies (name)
-	VALUES ("Chance"), ("Kane"), ("Alex"), ("Madison");
+	INSERT OR IGNORE INTO roomies (name, created_at, updated_at)
+	VALUES ("Chance", ?, ?), ("Kane", ?, ?), ("Alex", ?, ?), ("Madison", ?, ?);
 	`
-	_, err = db.Exec(createRoomies)
+	roomiesArgs := make([]any, 8)
+	for i := range 8 {
+		roomiesArgs[i] = time.Now()
+	}
+	_, err = db.Exec(createRoomies, roomiesArgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -142,8 +149,9 @@ func (db *DB) AddHostedLink(roomie, linkToken string) error {
 	}
 
 	// create bank record which saves roomie id and linkToken
-	sqlInsert := `INSERT INTO banks(link_token, roomie_id) VALUES(?, ?);`
-	if _, err := db.Exec(sqlInsert, linkToken, roomieId); err != nil {
+	sqlInsert := `INSERT INTO banks(link_token, roomie_id, created_at, updated_at) VALUES(?, ?, ?, ?);`
+	now := time.Now()
+	if _, err := db.Exec(sqlInsert, linkToken, roomieId, now, now); err != nil {
 		return fmt.Errorf("Error inserting roomie id and link token into banks table: %w", err)
 	}
 
@@ -189,24 +197,24 @@ func (db *DB) AccessTokenExists(accessToken string) (bool, error) {
 }
 
 func (db *DB) UpdateBankRecord(linkToken, bankName string, accessToken plaid.AccessToken) (int, error) {
-	// TODO: use current timestamp for updated_at
-	sqlStatement := `
-	UPDATE banks 
-	SET access_token = ?, plaid_id = ?, name = ?
-	WHERE link_token = ?;
-	`
-
-	if _, err := db.Exec(sqlStatement, accessToken.Token, accessToken.ItemId, bankName, linkToken); err != nil {
-		return 0, err
-	}
-
-	// get bank id of recently updated bank
+	// get bank id for func return and update statement
 	sqlQuery := `
-	SELECT id FROM banks WHERE access_token = ?;
+	SELECT id FROM banks WHERE link_token = ?;
 	`
 	var bankId int
-	if err := db.QueryRow(sqlQuery, accessToken.Token).Scan(&bankId); err != nil {
+	// NOTE: this query comes first for idempotency
+	if err := db.QueryRow(sqlQuery, linkToken).Scan(&bankId); err != nil {
 		return 0, fmt.Errorf("Error querying bank id and scanning row: %w", err)
+	}
+
+	sqlStatement := `
+	UPDATE banks 
+	SET access_token = ?, plaid_id = ?, name = ?, updated_at = ?
+	WHERE id = ?;
+	`
+
+	if _, err := db.Exec(sqlStatement, accessToken.Token, accessToken.ItemId, bankName, time.Now(), bankId); err != nil {
+		return 0, fmt.Errorf("Error whil updating bank record: %w", err)
 	}
 
 	return bankId, nil
@@ -220,12 +228,13 @@ func (db *DB) AddAccounts(accounts []plaid.Account, bankId int) error {
 	}
 
 	sqlInsert := `
-	INSERT INTO accounts (plaid_id, name, type_id, bank_id) VALUES (?, ?, ?, ?);
+	INSERT INTO accounts (plaid_id, name, type_id, bank_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?);
 	`
 
 	// TODO: make this concurrent
 	for _, acc := range accounts {
-		if _, err := db.Exec(sqlInsert, acc.PlaidId, acc.Name, typesMap[acc.Type], bankId); err != nil {
+		now := time.Now()
+		if _, err := db.Exec(sqlInsert, acc.PlaidId, acc.Name, typesMap[acc.Type], bankId, now, now); err != nil {
 			return fmt.Errorf("Error adding accounts in db: %w", err)
 		}
 	}
