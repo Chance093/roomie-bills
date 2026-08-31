@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
@@ -214,7 +215,7 @@ func (db *DB) UpdateBankRecord(linkToken, bankName string, accessToken plaid.Acc
 	`
 
 	if _, err := db.Exec(sqlStatement, accessToken.Token, accessToken.ItemId, bankName, time.Now(), bankId); err != nil {
-		return 0, fmt.Errorf("Error whil updating bank record: %w", err)
+		return 0, fmt.Errorf("Error while updating bank record: %w", err)
 	}
 
 	return bankId, nil
@@ -227,16 +228,36 @@ func (db *DB) AddAccounts(accounts []plaid.Account, bankId int) error {
 		return fmt.Errorf("Could not get account types map: %w", err)
 	}
 
-	sqlInsert := `
-	INSERT INTO accounts (plaid_id, name, type_id, bank_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?);
-	`
+	buildExecArgs := func() (string, []any) {
+		var b strings.Builder
+		b.WriteString("INSERT INTO accounts (plaid_id, name, type_id, bank_id, created_at, updated_at) VALUES ")
 
-	// TODO: make this concurrent
-	for _, acc := range accounts {
-		now := time.Now()
-		if _, err := db.Exec(sqlInsert, acc.PlaidId, acc.Name, typesMap[acc.Type], bankId, now, now); err != nil {
-			return fmt.Errorf("Error adding accounts in db: %w", err)
+		const argsPerRow = 6
+		args := make([]any, argsPerRow*len(accounts))
+		for i, acc := range accounts {
+			b.WriteString("(?, ?, ?, ?, ?, ?)")
+			if i == len(accounts)-1 {
+				b.WriteString(";")
+			} else {
+				b.WriteString(", ")
+			}
+
+			t := time.Now()
+			j := i * argsPerRow
+			args[j] = acc.PlaidId
+			args[j+1] = acc.Name
+			args[j+2] = typesMap[acc.Type]
+			args[j+3] = bankId
+			args[j+4] = t
+			args[j+5] = t
 		}
+
+		return b.String(), args
+	}
+
+	sqlInsert, sqlArgs := buildExecArgs()
+	if _, err := db.Exec(sqlInsert, sqlArgs...); err != nil {
+		return fmt.Errorf("Error adding account in db: %w", err)
 	}
 
 	return nil
