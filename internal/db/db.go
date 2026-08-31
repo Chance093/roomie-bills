@@ -203,7 +203,7 @@ func (db *DB) UpdateBankRecord(linkToken, bankName string, accessToken plaid.Acc
 	SELECT id FROM banks WHERE link_token = ?;
 	`
 	var bankId int
-	// NOTE: this query comes first for idempotency
+	// NOTE: this query intentionally comes first before mutation
 	if err := db.QueryRow(sqlQuery, linkToken).Scan(&bankId); err != nil {
 		return 0, fmt.Errorf("Error querying bank id and scanning row: %w", err)
 	}
