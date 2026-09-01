@@ -1,7 +1,8 @@
 # Roomie Bills
 
 ## TODO
-- [ ] Save account info to db using bgjobs
+- [x] Save account info to db using bgjobs
+- [ ] Create plaid funcs to obtain transactions from all accounts
 - [ ] Create funcs to parse through transactions and find bills
 - [ ] Create funcs to split bills 4 ways
 - [ ] Save bills to db
