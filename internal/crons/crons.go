@@ -1,6 +1,8 @@
 package crons
 
 import (
+	"fmt"
+
 	"github.com/Chance093/roomie-bills/internal/db"
 	"github.com/Chance093/roomie-bills/internal/lib"
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
@@ -18,6 +20,12 @@ func New(pc plaid.Client, dc lib.DiscordClient, db *db.DB) Cron {
 
 func (c Cron) CheckForNewBills() error {
 	// get access tokens from bank table in db
+	accessTokens, err := c.db.GetBankAccessTokens()
+	if err != nil {
+		return fmt.Errorf("Error while getting bank access tokens: %w", err)
+	}
+
+	fmt.Println(accessTokens)
 
 	// get transactions from plaid using access tokens
 

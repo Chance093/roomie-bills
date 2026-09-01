@@ -1,7 +1,6 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
 	"time"
 
@@ -56,4 +55,30 @@ func (db *DB) UpdateBankRecord(linkToken, bankName string, accessToken plaid.Acc
 	}
 
 	return bankId, nil
+}
+
+func (db *DB) GetBankAccessTokens() ([]string, error) {
+	sqlQuery := "SELECT access_token FROM banks;"
+
+	rows, err := db.Query(sqlQuery)
+	if err != nil {
+		return nil, fmt.Errorf("Error querying account types: %w", err)
+	}
+	defer rows.Close()
+
+	var accessTokens []string
+	for rows.Next() {
+		var accessToken string
+		if err := rows.Scan(&accessToken); err != nil {
+			return nil, fmt.Errorf("Failed to scan row for access tokens: %w", err)
+		}
+
+		accessTokens = append(accessTokens, accessToken)
+	}
+
+	if err = rows.Err(); err != nil {
+		return accessTokens, fmt.Errorf("Error while iterating through rows: %w", err)
+	}
+
+	return accessTokens, nil
 }
