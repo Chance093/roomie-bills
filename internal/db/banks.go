@@ -36,27 +36,6 @@ func (db *DB) DeleteBankRecord(linkToken string) error {
 	return nil
 }
 
-func (db *DB) AccessTokenExists(accessToken string) (bool, error) {
-	sqlStatement := "SELECT count(access_token) FROM banks WHERE access_token = ?;"
-	query, err := db.Prepare(sqlStatement)
-	if err != nil {
-		return false, fmt.Errorf("Error while making db query: %w", err)
-	}
-	defer query.Close()
-
-	var count string
-	err = query.QueryRow(accessToken).Scan(&count)
-
-	switch {
-	case err == sql.ErrNoRows || count == "0":
-		return false, nil
-	case err != nil:
-		return false, fmt.Errorf("Error while counting rows: %w", err)
-	default:
-		return true, nil
-	}
-}
-
 func (db *DB) UpdateBankRecord(linkToken, bankName string, accessToken plaid.AccessToken) (int, error) {
 	// get bank id for func return and update statement
 	sqlQuery := "SELECT id FROM banks WHERE link_token = ?;"

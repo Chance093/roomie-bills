@@ -79,14 +79,7 @@ func (h Handler) UpdateBank(ctx context.Context, t bgjobs.Task) error {
 		return fmt.Errorf("Could not unmarshal json into payload: %w", err)
 	}
 
-	// check if bank record has already been updated (idempotent)
-	if exists, err := h.db.AccessTokenExists(payload.AccessToken.Token); err != nil {
-		return fmt.Errorf("Error while checking if access token already exists in db: %w", err)
-	} else if exists {
-		return nil // access token exists and bank record has already been updated
-	}
-
-	// update bank record
+	// update bank record (idempotent)
 	bankId, err := h.db.UpdateBankRecord(payload.LinkToken, payload.Bank, payload.AccessToken)
 	if err != nil {
 		return fmt.Errorf("Could not update bank record: %w", err)
@@ -138,8 +131,7 @@ func (h Handler) AddAccounts(ctx context.Context, t bgjobs.Task) error {
 		return fmt.Errorf("Could not unmarshal json into payload: %w", err)
 	}
 
-	// TODO: do idempotency check
-
+	// add accounts (idempotent)
 	if err := h.db.AddAccounts(payload.Accounts, payload.BankId); err != nil {
 		return fmt.Errorf("Could not add accounts to db: %w", err)
 	}

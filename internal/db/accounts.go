@@ -24,7 +24,7 @@ func (db *DB) AddAccounts(accounts []plaid.Account, bankId int) error {
 		for i, acc := range accounts {
 			b.WriteString("(?, ?, ?, ?, ?, ?)")
 			if i == len(accounts)-1 {
-				b.WriteString(";")
+				b.WriteString(" ON CONFLICT(plaid_id) DO NOTHING;") // idempotent
 			} else {
 				b.WriteString(", ")
 			}
@@ -70,7 +70,7 @@ func (db *DB) getAccountTypes() (AccountTypeToId, error) {
 	for rows.Next() {
 		var at AccountType
 		if err := rows.Scan(&at.Id, &at.Name); err != nil {
-			return nil, fmt.Errorf("Failed to scan row: %w", err) // TODO: better error handling
+			return nil, fmt.Errorf("Failed to scan row for account types: %w", err)
 		}
 
 		m[at.Name] = at.Id
