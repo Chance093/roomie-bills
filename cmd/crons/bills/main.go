@@ -7,23 +7,22 @@ import (
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 )
 
+// run as a cron job every saturday
 func main() {
 	env, err := cfg.GetEnv()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// get transactions from plaid
+	// get access tokens from bank table in db
+
+	// get transactions from plaid using access tokens
 	pc := plaid.NewClient(env)
 	pc.GetNewTransactions()
 
-	// get transactions from db
+	// parse transactions for bills only
 
-	// get unaccounted transactions (what is not in db yet)
+	// insert into db, ignoring already existing bills (plaid id is unique)
 
-	// split bill 4 ways
-
-	// send off discord message
-
-	// save new transactions to db
+	// Send discord message notifying chat of new bills, or if no new bills have come in
 }
