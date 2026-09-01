@@ -2,6 +2,7 @@ package plaid
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -24,8 +25,6 @@ func NewClient(env map[string]string) Client {
 
 	return Client{client, env}
 }
-
-func (c Client) GetNewTransactions() {}
 
 type HostedLink struct {
 	LinkToken string
@@ -152,8 +151,8 @@ func (c Client) GetAccounts(ctx context.Context, accessToken string) ([]Account,
 type Transaction struct {
 	PlaidId string
 	Payee   string
-	Date    time.Time
-	Total   float32 // TODO: change to decimal package
+	Date    string
+	Total   float64 // TODO: change to decimal package
 }
 
 type AccountTransactions struct {
@@ -163,5 +162,66 @@ type AccountTransactions struct {
 }
 
 func (c Client) GetTransactions(ctx context.Context, accessTokens []string) ([]AccountTransactions, error) {
-	return nil, nil
+	const iso8601TimeFormat = "2006-01-02"
+	startDate := time.Now().Add(-7 * 24 * time.Hour).Format(iso8601TimeFormat)
+	endDate := time.Now().Format(iso8601TimeFormat)
+
+	// OPTIMIZE: This is a brute force solution
+	var accountTransactions []AccountTransactions
+	for _, at := range accessTokens {
+		request := plaid.NewTransactionsGetRequest(
+			at,
+			startDate,
+			endDate,
+		)
+
+		options := plaid.NewTransactionsGetRequestOptions()
+		options.SetCount(100)
+		options.SetOffset(0)
+
+		request.SetOptions(*options)
+
+		transactionsResp, _, err := c.client.PlaidApi.TransactionsGet(ctx).TransactionsGetRequest(*request).Execute()
+		if err != nil {
+			return nil, err // TODO: better error handling
+		}
+
+		// set accounts
+		rawAccs := transactionsResp.GetAccounts()
+		for _, rawAcc := range rawAccs {
+			accountTransactions = append(accountTransactions, AccountTransactions{
+				PlaidId:      rawAcc.AccountId,
+				Name:         rawAcc.Name,
+				Transactions: make([]Transaction, 0),
+			})
+		}
+
+		// set transactions in accounts
+		rawTransactions := transactionsResp.GetTransactions()
+		// loop through each plaid transaction
+		for _, rawTrans := range rawTransactions {
+			// find index of account associated with transaction
+			i := -1
+			for j, accTrans := range accountTransactions {
+				if rawTrans.GetAccountId() == accTrans.PlaidId {
+					i = j
+					break
+				}
+			}
+
+			if i == -1 {
+				return nil, errors.New("Could not find account!!! Should not happen")
+			}
+
+			// append transaction to that accounts transactions
+			accountTransactions[i].Transactions = append(accountTransactions[i].Transactions, Transaction{
+				PlaidId: rawTrans.GetTransactionId(),
+				Payee:   rawTrans.GetName(),
+				Date:    rawTrans.GetDate(),
+				Total:   rawTrans.Amount, // TODO: change to decimal package
+			})
+		}
+	}
+
+	return accountTransactions, nil
 }

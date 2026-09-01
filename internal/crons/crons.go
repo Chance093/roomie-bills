@@ -1,7 +1,9 @@
 package crons
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/Chance093/roomie-bills/internal/db"
 	"github.com/Chance093/roomie-bills/internal/lib"
@@ -25,9 +27,15 @@ func (c Cron) CheckForNewBills() error {
 		return fmt.Errorf("Error while getting bank access tokens: %w", err)
 	}
 
-	fmt.Println(accessTokens)
-
 	// get transactions from plaid using access tokens
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	raw, err := c.pc.GetTransactions(ctx, accessTokens)
+	if err != nil {
+		return fmt.Errorf("Error while getting transactions from plaid: %w", err)
+	}
+
+	fmt.Println(raw)
 
 	// parse transactions for bills only
 
