@@ -4,6 +4,9 @@ import (
 	"log"
 
 	"github.com/Chance093/roomie-bills/internal/cfg"
+	"github.com/Chance093/roomie-bills/internal/crons"
+	"github.com/Chance093/roomie-bills/internal/db"
+	"github.com/Chance093/roomie-bills/internal/lib"
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 )
 
@@ -14,15 +17,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// get access tokens from bank table in db
-
-	// get transactions from plaid using access tokens
 	pc := plaid.NewClient(env)
-	pc.GetNewTransactions()
+	dc, err := lib.NewDiscordClient(env)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// parse transactions for bills only
+	db := db.NewDB()
+	defer db.Close()
 
-	// insert into db, ignoring already existing bills (plaid id is unique)
+	cron := crons.New(pc, dc, db)
 
-	// Send discord message notifying chat of new bills, or if no new bills have come in
+	if err := cron.CheckForNewBills(); err != nil {
+		log.Fatal(err)
+	}
 }
