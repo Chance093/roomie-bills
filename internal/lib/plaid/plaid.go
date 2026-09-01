@@ -3,6 +3,7 @@ package plaid
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/plaid/plaid-go/v43/plaid"
 )
@@ -146,4 +147,21 @@ func (c Client) GetAccounts(ctx context.Context, accessToken string) ([]Account,
 	}
 
 	return accounts, err
+}
+
+type Transaction struct {
+	PlaidId string
+	Payee   string
+	Date    time.Time
+	Total   float32 // TODO: change to decimal package
+}
+
+type AccountTransactions struct {
+	PlaidId      string
+	Name         string
+	Transactions []Transaction
+}
+
+func (c Client) GetTransactions(ctx context.Context, accessTokens []string) ([]AccountTransactions, error) {
+	return nil, nil
 }
