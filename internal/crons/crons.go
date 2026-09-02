@@ -35,6 +35,8 @@ func (c Cron) CheckForNewBills() error {
 		return fmt.Errorf("Error while getting bills from plaid: %w", err)
 	}
 
+	// TODO: Make these 2 db inserts a transaction (idempotent)
+
 	// insert into db, ignoring already existing bills (plaid id is unique)
 	newBills, err := c.db.AddBills(bills)
 	if err != nil {
@@ -46,8 +48,6 @@ func (c Cron) CheckForNewBills() error {
 		if err := c.db.AddOwnerPayments(newBills); err != nil {
 			return fmt.Errorf("Error while adding owner payments; %w", err)
 		}
-
-		fmt.Println("Success!")
 
 		// split bills 4 ways
 

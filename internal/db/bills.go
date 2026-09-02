@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql"
 	"fmt"
 	"slices"
 	"strings"
@@ -110,13 +111,18 @@ func (db *DB) AddOwnerPayments(newBills []plaid.Bill) error {
 		return fmt.Errorf("Error while querying roomie id's: %w", err)
 	}
 
-	const argsPerRow = 4
+	const argsPerRow = 5
 	paymentsPerBill := len(roomieIds)
 	argsPerBill := argsPerRow * paymentsPerBill
 	args := make([]any, argsPerBill*len(newBills))
 	for i, bill := range newBills {
+		billRoomieId, err := db.getRoomieFromBill(bill)
+		if err != nil {
+			return fmt.Errorf("Error while getting roomie id from bill: %w", err)
+		}
+
 		for j, roomieId := range roomieIds {
-			b.WriteString("(?, (SELECT id FROM bills where plaid_id = ?), \"Pending\",  ?, ?)")
+			b.WriteString("(?, (SELECT id FROM bills where plaid_id = ?), ?, ?, ?)")
 			if i == len(newBills)-1 && j == len(roomieIds)-1 {
 				b.WriteString(";")
 			} else {
@@ -125,18 +131,24 @@ func (db *DB) AddOwnerPayments(newBills []plaid.Bill) error {
 
 			t := time.Now()
 			k := (argsPerBill * i) + (argsPerRow * j)
+
 			args[k] = roomieId
 			args[k+1] = bill.Id
-			args[k+2] = t
+
+			if roomieId == billRoomieId {
+				args[k+2] = "Paid"
+			} else {
+				args[k+2] = "Pending"
+			}
+
 			args[k+3] = t
+			args[k+4] = t
 		}
 	}
 
 	if _, err := db.Exec(b.String(), args...); err != nil {
 		return fmt.Errorf("Error adding payment in db: %w", err)
 	}
-
-	// update all payments by bill owners to be paid
 
 	return nil
 }
@@ -166,4 +178,24 @@ func (db *DB) getRoomieIds() ([]int64, error) {
 	}
 
 	return roomieIds, nil
+}
+
+func (db *DB) getRoomieFromBill(bill plaid.Bill) (int64, error) {
+	sqlQuery := `
+	SELECT roomies.id FROM bills
+	INNER JOIN accounts ON bills.account_id = accounts.id
+	INNER JOIN banks ON accounts.bank_id = banks.id
+	INNER JOIN roomies ON banks.roomie_id = roomies.id
+	WHERE bills.plaid_id = ?;
+	`
+
+	var id int64
+	if err := db.QueryRow(sqlQuery, bill.Id).Scan(&id); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, fmt.Errorf("Can't find roomie id: %w", err)
+		}
+		return 0, fmt.Errorf("Error while querying roomie id: %w", err)
+	}
+
+	return id, nil
 }
