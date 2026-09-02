@@ -205,8 +205,8 @@ func (c Client) getBills(ctx context.Context, accessToken string, billChan chan<
 	for _, transaction := range res.GetTransactions() {
 		payee := transaction.GetName()
 
+		// TODO: check if transaction is a bill
 		/*
-			// check if transaction is a bill
 			if payee != "insert bill names here" {
 				continue
 			}
