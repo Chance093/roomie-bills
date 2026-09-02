@@ -61,6 +61,7 @@ func initDB() (*sql.DB, error) {
 
 	CREATE TABLE IF NOT EXISTS bills (
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+		plaid_id TEXT NOT NULL UNIQUE,
 		payee TEXT NOT NULL,
 		date DATETIME NOT NULL,
 		total INTEGER NOT NULL,

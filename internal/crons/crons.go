@@ -32,10 +32,20 @@ func (c Cron) CheckForNewBills() error {
 	defer cancel()
 	bills, err := c.pc.GetBills(ctx, accessTokens)
 	if err != nil {
-		return fmt.Errorf("Error while getting transactions from plaid: %w", err)
+		return fmt.Errorf("Error while getting bills from plaid: %w", err)
 	}
 
 	// insert into db, ignoring already existing bills (plaid id is unique)
+	newBills, err := c.db.AddBills(bills)
+	if err != nil {
+		return fmt.Errorf("Error while adding bills to db: %w", err)
+	}
+
+	_ = newBills
+
+	// insert payments for bill owners
+
+	// split bills 4 ways
 
 	// Send discord message notifying chat of new bills, or if no new bills have come in
 	return nil
