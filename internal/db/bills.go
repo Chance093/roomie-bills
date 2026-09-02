@@ -99,3 +99,71 @@ func (db *DB) findNewBills(bills []plaid.Bill) ([]plaid.Bill, error) {
 
 	return newBills, nil
 }
+
+func (db *DB) AddOwnerPayments(newBills []plaid.Bill) error {
+	// build 1 sql query that inserts 4 payments per new bill
+	var b strings.Builder
+	b.WriteString("INSERT INTO payments (roomie_id, bill_id, status, created_at, updated_at) VALUES ")
+
+	roomieIds, err := db.getRoomieIds()
+	if err != nil {
+		return fmt.Errorf("Error while querying roomie id's: %w", err)
+	}
+
+	const argsPerRow = 4
+	paymentsPerBill := len(roomieIds)
+	argsPerBill := argsPerRow * paymentsPerBill
+	args := make([]any, argsPerBill*len(newBills))
+	for i, bill := range newBills {
+		for j, roomieId := range roomieIds {
+			b.WriteString("(?, (SELECT id FROM bills where plaid_id = ?), \"Pending\",  ?, ?)")
+			if i == len(newBills)-1 && j == len(roomieIds)-1 {
+				b.WriteString(";")
+			} else {
+				b.WriteString(", ")
+			}
+
+			t := time.Now()
+			k := (argsPerBill * i) + (argsPerRow * j)
+			args[k] = roomieId
+			args[k+1] = bill.Id
+			args[k+2] = t
+			args[k+3] = t
+		}
+	}
+
+	if _, err := db.Exec(b.String(), args...); err != nil {
+		return fmt.Errorf("Error adding payment in db: %w", err)
+	}
+
+	// update all payments by bill owners to be paid
+
+	return nil
+}
+
+func (db *DB) getRoomieIds() ([]int64, error) {
+	sqlQuery := "SELECT id FROM roomies;"
+
+	rows, err := db.Query(sqlQuery)
+	if err != nil {
+		return nil, fmt.Errorf("Error querying roomie id's: %w", err)
+	}
+	defer rows.Close()
+
+	// find bills that were already saved to db
+	var roomieIds []int64
+	for rows.Next() {
+		var roomieId int64
+		if err := rows.Scan(&roomieId); err != nil {
+			return nil, fmt.Errorf("Failed to scan row for roomie id: %w", err)
+		}
+
+		roomieIds = append(roomieIds, roomieId)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("Error while iterating through rows: %w", err)
+	}
+
+	return roomieIds, nil
+}

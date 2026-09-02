@@ -74,6 +74,7 @@ func initDB() (*sql.DB, error) {
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 		roomie_id INTEGER NOT NULL,
 		bill_id INTEGER NOT NULL,
+		status TEXT NOT NULL, -- "Paid" | "Pending"
 		created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL
 	);

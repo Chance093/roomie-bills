@@ -41,13 +41,21 @@ func (c Cron) CheckForNewBills() error {
 		return fmt.Errorf("Error while adding bills to db: %w", err)
 	}
 
-	_ = newBills
+	if len(newBills) > 0 {
+		// insert payments for bill owners
+		if err := c.db.AddOwnerPayments(newBills); err != nil {
+			return fmt.Errorf("Error while adding owner payments; %w", err)
+		}
 
-	// insert payments for bill owners
+		fmt.Println("Success!")
 
-	// split bills 4 ways
+		// split bills 4 ways
 
-	// Send discord message notifying chat of new bills, or if no new bills have come in
+		// Send discord message notifying chat of new bills
+	} else {
+		// send discord message notifying no new bills this week
+	}
+
 	return nil
 }
 
