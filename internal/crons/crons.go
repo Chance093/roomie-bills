@@ -27,17 +27,17 @@ func (c Cron) CheckForNewBills() error {
 		return fmt.Errorf("Error while getting bank access tokens: %w", err)
 	}
 
-	// get transactions from plaid using access tokens
+	// get bills from plaid using access tokens
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	raw, err := c.pc.GetTransactions(ctx, accessTokens)
+	t := time.Now()
+	bills, err := c.pc.GetBills(ctx, accessTokens)
 	if err != nil {
 		return fmt.Errorf("Error while getting transactions from plaid: %w", err)
 	}
 
-	fmt.Println(raw)
-
-	// parse transactions for bills only
+	fmt.Println(bills)
+	fmt.Println(time.Since(t))
 
 	// insert into db, ignoring already existing bills (plaid id is unique)
 

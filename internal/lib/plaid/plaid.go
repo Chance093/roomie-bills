@@ -2,8 +2,8 @@ package plaid
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/plaid/plaid-go/v43/plaid"
@@ -148,80 +148,76 @@ func (c Client) GetAccounts(ctx context.Context, accessToken string) ([]Account,
 	return accounts, err
 }
 
-type Transaction struct {
-	PlaidId string
-	Payee   string
-	Date    string
-	Total   float64 // TODO: change to decimal package
+type Bill struct {
+	Id        string
+	AccountId string
+	Payee     string
+	Date      string
+	Total     float64 // TODO: change to decimal package
 }
 
-type AccountTransactions struct {
-	PlaidId      string
-	Name         string
-	Transactions []Transaction
+func (c Client) GetBills(ctx context.Context, accessTokens []string) ([]Bill, error) {
+	var bills []Bill
+
+	// get bills for each bank account concurrently
+	var wg sync.WaitGroup
+	billChan := make(chan Bill)
+	for _, token := range accessTokens {
+		wg.Go(func() { c.getBills(ctx, token, billChan) })
+	}
+
+	// when all go routines are finished, close bill channel to avoid deadlock
+	go func() {
+		wg.Wait()
+		close(billChan)
+	}()
+
+	// listen for bills on bill channel and append to slice
+	for bill := range billChan {
+		bills = append(bills, bill)
+	}
+
+	return bills, nil
 }
 
-func (c Client) GetTransactions(ctx context.Context, accessTokens []string) ([]AccountTransactions, error) {
+func (c Client) getBills(ctx context.Context, accessToken string, billChan chan<- Bill) {
 	const iso8601TimeFormat = "2006-01-02"
 	startDate := time.Now().Add(-7 * 24 * time.Hour).Format(iso8601TimeFormat)
 	endDate := time.Now().Format(iso8601TimeFormat)
 
-	// OPTIMIZE: This is a brute force solution
-	var accountTransactions []AccountTransactions
-	for _, at := range accessTokens {
-		request := plaid.NewTransactionsGetRequest(
-			at,
-			startDate,
-			endDate,
-		)
+	request := plaid.NewTransactionsGetRequest(
+		accessToken,
+		startDate,
+		endDate,
+	)
 
-		options := plaid.NewTransactionsGetRequestOptions()
-		options.SetCount(100)
-		options.SetOffset(0)
+	options := plaid.NewTransactionsGetRequestOptions()
+	options.SetCount(100)
+	options.SetOffset(0)
 
-		request.SetOptions(*options)
+	request.SetOptions(*options)
 
-		transactionsResp, _, err := c.client.PlaidApi.TransactionsGet(ctx).TransactionsGetRequest(*request).Execute()
-		if err != nil {
-			return nil, err // TODO: better error handling
-		}
-
-		// set accounts
-		rawAccs := transactionsResp.GetAccounts()
-		for _, rawAcc := range rawAccs {
-			accountTransactions = append(accountTransactions, AccountTransactions{
-				PlaidId:      rawAcc.AccountId,
-				Name:         rawAcc.Name,
-				Transactions: make([]Transaction, 0),
-			})
-		}
-
-		// set transactions in accounts
-		rawTransactions := transactionsResp.GetTransactions()
-		// loop through each plaid transaction
-		for _, rawTrans := range rawTransactions {
-			// find index of account associated with transaction
-			i := -1
-			for j, accTrans := range accountTransactions {
-				if rawTrans.GetAccountId() == accTrans.PlaidId {
-					i = j
-					break
-				}
-			}
-
-			if i == -1 {
-				return nil, errors.New("Could not find account!!! Should not happen")
-			}
-
-			// append transaction to that accounts transactions
-			accountTransactions[i].Transactions = append(accountTransactions[i].Transactions, Transaction{
-				PlaidId: rawTrans.GetTransactionId(),
-				Payee:   rawTrans.GetName(),
-				Date:    rawTrans.GetDate(),
-				Total:   rawTrans.Amount, // TODO: change to decimal package
-			})
-		}
+	res, _, err := c.client.PlaidApi.TransactionsGet(ctx).TransactionsGetRequest(*request).Execute()
+	if err != nil {
+		return
 	}
 
-	return accountTransactions, nil
+	for _, transaction := range res.GetTransactions() {
+		payee := transaction.GetName()
+
+		/*
+			// check if transaction is a bill
+			if payee != "insert bill names here" {
+				continue
+			}
+		*/
+
+		billChan <- Bill{
+			Id:        transaction.GetTransactionId(),
+			AccountId: transaction.GetAccountId(),
+			Payee:     payee,
+			Date:      transaction.GetDate(),
+			Total:     transaction.GetAmount(),
+		}
+	}
 }
