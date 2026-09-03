@@ -22,15 +22,6 @@ func NewDiscordClient(env map[string]string) (DiscordClient, error) {
 	return DiscordClient{client: client, channelId: env["DISCORD_CHANNEL_ID"]}, nil
 }
 
-func (dc *DiscordClient) PostMessage(message string) {
-	dc.formatMessage()
-	fmt.Println("printing message to discord")
-}
-
-func (dc *DiscordClient) formatMessage() {
-	fmt.Println("formatting message")
-}
-
 func (dc *DiscordClient) SendHostedLink(roomie, hostedLink string) error {
 	messageOne := fmt.Sprintf("A link has been requested for %s.\n", roomie)
 	messageTwo := fmt.Sprintf("Plaid link: %s", hostedLink)
@@ -57,7 +48,7 @@ func (dc *DiscordClient) SendBills(bills []types.SplitBill) error {
 
 	for _, bill := range bills {
 		// TODO: fix help messages
-		b.WriteString(fmt.Sprintf("#️⃣ Bill ID: %s\n", bill.Id))
+		b.WriteString(fmt.Sprintf("#️⃣ Bill ID: %s\n", bill.Id)) // first space is an emoji
 		b.WriteString(fmt.Sprintf("📋 New Bill: %s\n", bill.Payee))
 		b.WriteString(fmt.Sprintf("📅 Date: %s\n", bill.Date))
 		b.WriteString(fmt.Sprintf("💰 Total: $%.2f\n", bill.Total))
