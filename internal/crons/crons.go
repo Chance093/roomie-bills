@@ -3,6 +3,7 @@ package crons
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/Chance093/roomie-bills/internal/db"
@@ -50,6 +51,10 @@ func (c Cron) CheckForNewBills() error {
 		}
 
 		// split bills 4 ways
+		splitBills := splitBills(newBills)
+		for _, bill := range splitBills {
+			fmt.Println(bill)
+		}
 
 		// Send discord message notifying chat of new bills
 	} else {
@@ -57,6 +62,22 @@ func (c Cron) CheckForNewBills() error {
 	}
 
 	return nil
+}
+
+type SplitBill struct {
+	plaid.Bill
+	Split float64
+}
+
+// TODO: use decimal package
+func splitBills(bills []plaid.Bill) []SplitBill {
+	splitBills := make([]SplitBill, len(bills))
+	for i, bill := range bills {
+		split := math.Round(bill.Total/4*100) / 100
+		splitBills[i] = SplitBill{bill, split}
+	}
+
+	return splitBills
 }
 
 func (c Cron) EndOfMonthSummaryCron() {
