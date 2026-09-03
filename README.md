@@ -2,11 +2,18 @@
 
 ## TODO
 - [x] Save account info to db using bgjobs
-- [ ] Create plaid funcs to obtain transactions from all accounts
-- [ ] Create funcs to parse through transactions and find bills
-- [ ] Create funcs to split bills 4 ways
-- [ ] Save bills to db
-- [ ] Create discord package
+- [x] Create plaid funcs to obtain transactions from all accounts
+- [x] Create funcs to parse through transactions and find bills
+- [x] Create funcs to split bills 4 ways
+- [x] Save bills to db
+- [x] Create discord package
+- [ ] Convert cron jobs to use message queue (for retries)
+- [ ] Use decimal package to track money for bills
+- [ ] Give proper info to bills discord message (bill id, roomie)
+- [ ] Create cron job to send weekly reminders for previous bills
+- [ ] Create api endpoint that marks a bill paid by a roomie
+- [ ] Set up discord command that hits above api endpoint
+- [ ] Do all todos
 ### Message Format
 
 Your format is a good start, but I'd expand it a bit to make it more actionable:
