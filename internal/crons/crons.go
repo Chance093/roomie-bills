@@ -9,6 +9,7 @@ import (
 	"github.com/Chance093/roomie-bills/internal/db"
 	"github.com/Chance093/roomie-bills/internal/lib"
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
+	"github.com/Chance093/roomie-bills/internal/types"
 )
 
 type Cron struct {
@@ -52,29 +53,29 @@ func (c Cron) CheckForNewBills() error {
 
 		// split bills 4 ways
 		splitBills := splitBills(newBills)
-		for _, bill := range splitBills {
-			fmt.Println(bill)
-		}
 
 		// Send discord message notifying chat of new bills
+		if err := c.dc.SendBills(splitBills); err != nil {
+			return fmt.Errorf("Error while sending bills to discord: %w", err)
+		}
 	} else {
 		// send discord message notifying no new bills this week
+		if err := c.dc.SendNoBillsMessage(); err != nil {
+			return fmt.Errorf("Error while sending no bills message to discord: %w", err)
+		}
 	}
+
+	fmt.Println("Success")
 
 	return nil
 }
 
-type SplitBill struct {
-	plaid.Bill
-	Split float64
-}
-
 // TODO: use decimal package
-func splitBills(bills []plaid.Bill) []SplitBill {
-	splitBills := make([]SplitBill, len(bills))
+func splitBills(bills []plaid.Bill) []types.SplitBill {
+	splitBills := make([]types.SplitBill, len(bills))
 	for i, bill := range bills {
 		split := math.Round(bill.Total/4*100) / 100
-		splitBills[i] = SplitBill{bill, split}
+		splitBills[i] = types.SplitBill{Bill: bill, Split: split}
 	}
 
 	return splitBills
