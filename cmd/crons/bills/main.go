@@ -3,32 +3,23 @@ package main
 import (
 	"log"
 
-	"github.com/Chance093/roomie-bills/internal/cfg"
-	"github.com/Chance093/roomie-bills/internal/crons"
-	"github.com/Chance093/roomie-bills/internal/db"
-	"github.com/Chance093/roomie-bills/internal/lib"
-	"github.com/Chance093/roomie-bills/internal/lib/plaid"
+	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
+	"github.com/Chance093/roomie-bills/internal/tasks"
 )
 
 // run as a cron job every saturday
 func main() {
-	env, err := cfg.GetEnv()
+	// starts task pipeline for getting bills
+	redisOpts := bgjobs.RedisOpts{}
+	jc := bgjobs.NewClient(redisOpts)
+	defer jc.Close()
+
+	newTask, err := tasks.NewGetAccessTokensTask()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Could not create starting task for cron: %s", err.Error())
 	}
 
-	pc := plaid.NewClient(env)
-	dc, err := lib.NewDiscordClient(env)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	db := db.NewDB()
-	defer db.Close()
-
-	cron := crons.New(pc, dc, db)
-
-	if err := cron.CheckForNewBills(); err != nil {
-		log.Fatal(err)
+	if _, err := jc.Enqueue(newTask); err != nil {
+		log.Fatalf("Could not enqueue starting task: %s", err.Error())
 	}
 }

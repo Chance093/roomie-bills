@@ -182,7 +182,7 @@ func (c Client) GetBills(ctx context.Context, accessTokens []string) ([]Bill, er
 
 func (c Client) getBills(ctx context.Context, accessToken string, billChan chan<- Bill) {
 	const iso8601TimeFormat = "2006-01-02"
-	startDate := time.Now().Add(-7 * 24 * time.Hour).Format(iso8601TimeFormat)
+  startDate := time.Now().Add(-21 * 24 * time.Hour).Format(iso8601TimeFormat) // TODO: change start date after testing
 	endDate := time.Now().Format(iso8601TimeFormat)
 
 	request := plaid.NewTransactionsGetRequest(

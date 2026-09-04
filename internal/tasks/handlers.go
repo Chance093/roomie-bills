@@ -176,8 +176,13 @@ func (h Handler) GetBills(ctx context.Context, t bgjobs.Task) error {
 		return fmt.Errorf("Error while getting bills from plaid: %w", err)
 	}
 
-	// create new task and enqueue
-	newTask, err := NewGetNewBillsTask(plaidBills)
+	// create new task and enqueue depending on if there are bills or not
+	var newTask *bgjobs.Task
+	if len(plaidBills) == 0 {
+		newTask, err = NewSendNoBillsTask()
+	} else {
+		newTask, err = NewGetNewBillsTask(plaidBills)
+	}
 	if err != nil {
 		return err
 	}
@@ -273,4 +278,13 @@ func splitBills(bills []db.Bill) []types.SplitBill {
 	}
 
 	return splitBills
+}
+
+func (h Handler) SendNoBills(ctx context.Context, t bgjobs.Task) error {
+	// send discord message letting them know there are no new bills
+	if err := h.dc.SendNoBillsMessage(); err != nil {
+		return fmt.Errorf("Error sending no bills message: %w", err)
+	}
+
+	return nil
 }
