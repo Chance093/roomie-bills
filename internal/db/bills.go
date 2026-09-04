@@ -66,10 +66,12 @@ func (db *DB) FindNewPlaidBills(bills []plaid.Bill) ([]plaid.Bill, error) {
 }
 
 func (db *DB) AddBillsAndPayments(bills []plaid.Bill) ([]Bill, error) {
+	// begin a transaction
 	tx, err := db.BeginTx(context.TODO(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to start db transaction: %w", err)
 	}
+	defer tx.Rollback()
 
 	// get all roomie id's
 	roomieIds, err := getRoomieIds(tx)
@@ -79,7 +81,7 @@ func (db *DB) AddBillsAndPayments(bills []plaid.Bill) ([]Bill, error) {
 
 	// save bills to db and add initial payments associated with each bill
 	savedBills := make([]Bill, len(bills))
-	for _, bill := range bills {
+	for i, bill := range bills {
 		id, err := addBill(tx, bill)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to add bill to db: %w", err)
@@ -94,13 +96,18 @@ func (db *DB) AddBillsAndPayments(bills []plaid.Bill) ([]Bill, error) {
 			return nil, fmt.Errorf("Failed to add payments associated with bill %d: %w", id, err)
 		}
 
-		savedBills = append(savedBills, Bill{
+		savedBills[i] = Bill{
 			Id:     id,
 			Payee:  bill.Payee,
 			Date:   bill.Date,
 			Total:  bill.Total,
 			Roomie: roomie.name,
-		})
+		}
+	}
+
+	// commit all insertions
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("Failed to commit transactions: %w", err)
 	}
 
 	return savedBills, nil

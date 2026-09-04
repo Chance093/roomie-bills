@@ -48,16 +48,15 @@ func (dc *DiscordClient) SendBills(bills []types.SplitBill) error {
 
 	for _, bill := range bills {
 		// TODO: fix help messages
-		b.WriteString(fmt.Sprintf("#️⃣ Bill ID: %s\n", bill.Id)) // first space is an emoji
+		b.WriteString(fmt.Sprintf("#️⃣ Bill ID: %d\n", bill.Id)) // first space is an emoji
 		b.WriteString(fmt.Sprintf("📋 New Bill: %s\n", bill.Payee))
 		b.WriteString(fmt.Sprintf("📅 Date: %s\n", bill.Date))
 		b.WriteString(fmt.Sprintf("💰 Total: $%.2f\n", bill.Total))
-		b.WriteString(fmt.Sprintf("👤 Each roommate owes Chance: $%.2f\n", bill.Split))
+		b.WriteString(fmt.Sprintf("👤 Each roommate owes %s: $%.2f\n", bill.Roomie, bill.Split))
 		b.WriteString("\n")
 	}
 
-	b.WriteString("React with ✅ when you've paid Chance back!\n")
-	b.WriteString("— Kane | Alex | Madison")
+	b.WriteString("Type command /paid in the channel followed by the bill id once you have paid back your roomie!\n")
 	b.WriteString("```")
 
 	if _, err := dc.client.ChannelMessageSend(dc.channelId, b.String()); err != nil {
