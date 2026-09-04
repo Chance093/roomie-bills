@@ -1,8 +1,8 @@
 package types
 
-import "github.com/Chance093/roomie-bills/internal/lib/plaid"
+import "github.com/Chance093/roomie-bills/internal/db"
 
 type SplitBill struct {
-	plaid.Bill
+	db.Bill
 	Split float64
 }
