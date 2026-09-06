@@ -73,23 +73,25 @@ type deadLetter struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-func sendToDLQ(ctx context.Context, dlq queue, t Task, e []string) error {
+func sendToDLQ(ctx context.Context, dlq queue, tempQ queue, raw string, t Task, errors ...string) {
 	dl := deadLetter{
 		Task:      t,
-		Err:       e,
+		Err:       errors,
 		CreatedAt: time.Now(),
 	}
 
 	// marshall struct into json
 	jdl, err := json.Marshal(dl)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal dl into json: %w", err)
+		fmt.Printf("[Dead Letter]: Failed to marshal dl with errors [%v] into json: %s", errors, err.Error())
 	}
 
 	// send to DLQ
 	if err := dlq.enqueue(ctx, jdl); err != nil {
-		return fmt.Errorf("Failed to enqueue to DLQ: %w", err)
+		fmt.Printf("[Dead Letter]: Failed to enqueue to DLQ with errors [%v]: %s", errors, err.Error())
 	}
 
-	return nil
+	if err := tempQ.remove(ctx, raw); err != nil {
+		fmt.Printf("Failed to remove task [%s] from temp queue: %s\n", t.Id, err)
+	}
 }

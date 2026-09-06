@@ -59,7 +59,7 @@ func (s *Server) Run(mux *ServeMux) {
 }
 
 // TODO: error logging
-func (s *Server) worker(mux *ServeMux) error {
+func (s *Server) worker(mux *ServeMux) {
 OUTER:
 	for {
 		ctx := context.TODO()
@@ -67,54 +67,49 @@ OUTER:
 		// dequeue task (blocking) and move to temp queue (reliable queue)
 		raw, err := s.primeQ.popAndMoveTo(ctx, s.tempQ)
 		if err != nil {
-			return fmt.Errorf("Failed to dequeue and move to temp queue: %w", err)
+			fmt.Printf("Failed to dequeue and move to temp queue: %s\n", err.Error())
+			continue OUTER
 		}
 
 		// unmarshall json into Task struct
 		var t Task
 		if err := json.Unmarshal([]byte(raw), &t); err != nil {
-			return fmt.Errorf("Failed to unmarshal raw task json: %w", err)
+			errMessage := fmt.Sprintf("Failed to unmarshal raw task json: %s\n", err.Error())
+			sendToDLQ(ctx, s.dlq, s.tempQ, raw, t, errMessage)
+			continue OUTER
 		}
 
 		// look up task name in mux
 		h, err := mux.getHandler(t.Name)
 		if err != nil {
-			return fmt.Errorf("Failed to get task handler: %w", err)
+			errMessage := fmt.Sprintf("Failed to get task handler: %s\n", err.Error())
+			sendToDLQ(ctx, s.dlq, s.tempQ, raw, t, errMessage)
+			continue OUTER
 		}
 
 		// run handler with backoff retries
 		var errMessages []string
 		for attempt := 1; attempt <= int(t.Retries); attempt++ {
 			// TODO: Implement timeout logic
-			ctx, cancel := context.WithTimeout(ctx, t.Timeout)
-			defer cancel()
-
 			err := h(ctx, t)
-			if err == nil {
-				// on success, remove task from temp queue
-				if err := s.tempQ.remove(ctx, raw); err != nil {
-					return fmt.Errorf("Failed to remove task from temp queue: %w\n", err)
+			if err != nil {
+				// backoff before retry
+				errMessages = append(errMessages, err.Error())
+				if attempt < int(t.Retries) {
+					sleepDur := time.Duration(math.Pow(2, float64(attempt)))
+					time.Sleep(time.Second * sleepDur)
 				}
-				continue OUTER
+				continue
 			}
 
-			// backoff before retry
-			errMessages = append(errMessages, err.Error())
-			if attempt < int(t.Retries) {
-				sleepDur := time.Duration(math.Pow(2, float64(attempt)))
-				time.Sleep(time.Second * sleepDur)
+			// on success, remove task from temp queue
+			if err := s.tempQ.remove(ctx, raw); err != nil {
+				fmt.Printf("Failed to remove task [%s] from temp queue: %s\n", t.Id, err.Error())
 			}
+			continue OUTER
 		}
 
 		// add to DLQ if retries run out and remove from temp queue
-		if err := sendToDLQ(ctx, s.dlq, t, errMessages); err != nil {
-			newErr := fmt.Errorf("Failed to send task to DLQ: %w\n", err)
-			fmt.Println(newErr)
-			return newErr
-		}
-
-		if err := s.tempQ.remove(ctx, raw); err != nil {
-			return fmt.Errorf("Failed to remove task from temp queue: %w\n", err)
-		}
+		sendToDLQ(ctx, s.dlq, s.tempQ, raw, t, errMessages...)
 	}
 }
