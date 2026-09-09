@@ -90,13 +90,26 @@ func (dc *DiscordClient) SendOutstandingBills(outstandingBills []db.OutstandingB
 		b.WriteString("😠 ")
 
 		for i, payer := range bill.Payers {
-			if i == len(bill.Payers)-1 {
+			if len(bill.Payers) == 1 {
 				b.WriteString(fmt.Sprintf("%s ", payer))
 			} else {
-				b.WriteString(fmt.Sprintf("%s, ", payer))
+				if i == len(bill.Payers)-1 {
+					b.WriteString(fmt.Sprintf("and %s ", payer))
+				} else {
+					if len(bill.Payers) == 2 {
+						b.WriteString(fmt.Sprintf("%s ", payer))
+					} else {
+						b.WriteString(fmt.Sprintf("%s, ", payer))
+					}
+				}
 			}
 		}
-		b.WriteString(fmt.Sprintf("still owe(s) %s money!\n", bill.Payee))
+
+		if len(bill.Payers) == 1 {
+			b.WriteString(fmt.Sprintf("still owes %s money!\n", bill.Payee))
+		} else {
+			b.WriteString(fmt.Sprintf("still owe %s money!\n", bill.Payee))
+		}
 		b.WriteString("\n")
 	}
 
