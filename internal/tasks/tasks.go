@@ -22,7 +22,7 @@ const (
 	TypeAddBillsPayments = "add:bills:payments"
 	TypeSendBills        = "send:bills"
 	TypeSendNoBills      = "send:nothing"
-	TypeGetUnpaidBills   = "get:unpaid:bills"
+	TypeGetOutstandingBills   = "get:outstanding:bills"
 )
 
 type (
@@ -165,6 +165,6 @@ func NewSendNoBillsTask() (*bgjobs.Task, error) {
 	return newTask("", TypeSendNoBills)
 }
 
-func NewGetUnpaidBillsTask() (*bgjobs.Task, error) {
+func NewGetOutstandingBillsTask() (*bgjobs.Task, error) {
   return newTask("", TypeGetUnpaidBills)
 }

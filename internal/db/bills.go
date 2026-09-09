@@ -215,7 +215,7 @@ func addPaymentsForBill(tx *sql.Tx, billPlaidId string, roomie Roomie, roomieIds
 	return nil
 }
 
-type UnpaidBill struct {
+type OutstandingBill struct {
 	Id     int64
 	Name   string
 	Payee  string
@@ -230,7 +230,7 @@ type Payment struct {
 	Amount float64
 }
 
-func (db *DB) GetUnpaidBills() ([]UnpaidBill, error) {
+func (db *DB) GetOutstandingBills() ([]OutstandingBill, error) {
 	sqlQuery := `
 	SELECT bills.id, bills.payee AS bill, bills.total, payers.name AS payer, payees.name AS payee FROM payments
 	INNER JOIN roomies AS payers ON payments.roomie_id = payers.id
@@ -259,9 +259,9 @@ func (db *DB) GetUnpaidBills() ([]UnpaidBill, error) {
 	}
 
 	// turn map into slice of unpaid bills
-	var unpaidBills []UnpaidBill
+	var outstandingBills []OutstandingBill
 	for payment, payers := range m {
-		unpaidBills = append(unpaidBills, UnpaidBill{
+		outstandingBills = append(outstandingBills, OutstandingBill{
 			Id:     payment.Id,
 			Name:   payment.Name,
 			Payee:  payment.Payee,
@@ -274,5 +274,5 @@ func (db *DB) GetUnpaidBills() ([]UnpaidBill, error) {
 		return nil, fmt.Errorf("Error while iterating through rows: %w", err)
 	}
 
-	return unpaidBills, nil
+	return outstandingBills, nil
 }

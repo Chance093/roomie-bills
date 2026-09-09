@@ -14,7 +14,7 @@ func main() {
 	jc := bgjobs.NewClient(redisOpts)
 	defer jc.Close()
 
-	newTask, err := tasks.NewGetUnpaidBillsTask()
+	newTask, err := tasks.NewGetOutstandingBillsTask()
 	if err != nil {
 		log.Fatalf("Could not create starting task for cron: %s", err.Error())
 	}

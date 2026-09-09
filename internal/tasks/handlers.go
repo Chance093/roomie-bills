@@ -289,13 +289,13 @@ func (h Handler) SendNoBills(ctx context.Context, t bgjobs.Task) error {
 	return nil
 }
 
-func (h Handler) GetUnpaidBills(ctx context.Context, t bgjobs.Task) error {
-	unpaidBills, err := h.db.GetUnpaidBills()
+func (h Handler) GetOutstandingBills(ctx context.Context, t bgjobs.Task) error {
+	outstandingBills, err := h.db.GetOutstandingBills()
 	if err != nil {
 		return fmt.Errorf("Error getting unpaid bills: %w", err)
 	}
 
-	for _, bill := range unpaidBills {
+	for _, bill := range outstandingBills {
 		fmt.Printf("Id: %d, Bill: %s | Total: %.2f | Payee: %s | Payers: %v\n", bill.Id, bill.Name, bill.Amount, bill.Payee, bill.Payers)
 	}
 
