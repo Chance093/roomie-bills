@@ -214,3 +214,65 @@ func addPaymentsForBill(tx *sql.Tx, billPlaidId string, roomie Roomie, roomieIds
 
 	return nil
 }
+
+type UnpaidBill struct {
+	Id     int64
+	Name   string
+	Payee  string
+	Amount float64
+	Payers []string
+}
+
+type Payment struct {
+	Id     int64
+	Name   string
+	Payee  string
+	Amount float64
+}
+
+func (db *DB) GetUnpaidBills() ([]UnpaidBill, error) {
+	sqlQuery := `
+	SELECT bills.id, bills.payee AS bill, bills.total, payers.name AS payer, payees.name AS payee FROM payments
+	INNER JOIN roomies AS payers ON payments.roomie_id = payers.id
+	INNER JOIN bills ON payments.bill_id = bills.id
+	INNER JOIN accounts ON bills.account_id = accounts.id 
+	INNER JOIN banks ON accounts.bank_id = banks.id 
+	INNER JOIN roomies AS payees ON banks.roomie_id = payees.id
+	WHERE payments.status = "Pending";
+	`
+
+	rows, err := db.Query(sqlQuery)
+	if err != nil {
+		return nil, fmt.Errorf("Error querying unpaid bills: %w", err)
+	}
+	defer rows.Close()
+
+	m := make(map[Payment][]string)
+	for rows.Next() {
+		var payment Payment
+		var payer string
+		if err := rows.Scan(&payment.Id, &payment.Name, &payment.Amount, &payer, &payment.Payee); err != nil {
+			return nil, fmt.Errorf("Failed to scan row for unpaid bill: %w", err)
+		}
+
+		m[payment] = append(m[payment], payer)
+	}
+
+	// turn map into slice of unpaid bills
+	var unpaidBills []UnpaidBill
+	for payment, payers := range m {
+		unpaidBills = append(unpaidBills, UnpaidBill{
+			Id:     payment.Id,
+			Name:   payment.Name,
+			Payee:  payment.Payee,
+			Amount: payment.Amount,
+			Payers: payers,
+		})
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("Error while iterating through rows: %w", err)
+	}
+
+	return unpaidBills, nil
+}
