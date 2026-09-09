@@ -149,17 +149,17 @@ func NewAddBillsPaymentsTask(plaidBills []plaid.Bill) (*bgjobs.Task, error) {
 		GetNewBillsPayload{PlaidBills: plaidBills},
 	}
 
-  return newTask(v, TypeAddBillsPayments)
+	return newTask(v, TypeAddBillsPayments)
 }
 
 func NewSendBillsTask(bills []db.Bill) (*bgjobs.Task, error) {
-  v := SendBillsPayload{
-    Bills: bills,
-  }
+	v := SendBillsPayload{
+		Bills: bills,
+	}
 
-  return newTask(v, TypeSendBills)
+	return newTask(v, TypeSendBills)
 }
 
 func NewSendNoBillsTask() (*bgjobs.Task, error) {
-  return newTask("", TypeSendNoBills)
+	return newTask("", TypeSendNoBills)
 }
