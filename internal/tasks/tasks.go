@@ -166,5 +166,5 @@ func NewSendNoBillsTask() (*bgjobs.Task, error) {
 }
 
 func NewGetOutstandingBillsTask() (*bgjobs.Task, error) {
-  return newTask("", TypeGetUnpaidBills)
+  return newTask("", TypeGetOutstandingBills)
 }
