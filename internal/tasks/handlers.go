@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 
 	"github.com/Chance093/roomie-bills/internal/db"
 	"github.com/Chance093/roomie-bills/internal/lib"
 	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 	"github.com/Chance093/roomie-bills/internal/types"
+	"github.com/Chance093/roomie-bills/internal/utils"
 )
 
 type Handler struct {
@@ -273,7 +273,7 @@ func (h Handler) SendBills(ctx context.Context, t bgjobs.Task) error {
 func splitBills(bills []db.Bill) []types.SplitBill {
 	splitBills := make([]types.SplitBill, len(bills))
 	for i, bill := range bills {
-		split := math.Round(bill.Total/4*100) / 100
+		split := utils.SplitFourWay(bill.Total)
 		splitBills[i] = types.SplitBill{Bill: bill, Split: split}
 	}
 

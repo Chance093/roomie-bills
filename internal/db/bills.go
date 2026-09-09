@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
+	"github.com/Chance093/roomie-bills/internal/utils"
 )
 
 type Bill struct {
@@ -265,7 +266,7 @@ func (db *DB) GetOutstandingBills() ([]OutstandingBill, error) {
 			Id:     payment.Id,
 			Name:   payment.Name,
 			Payee:  payment.Payee,
-			Amount: payment.Amount,
+			Amount: utils.SplitFourWay(payment.Amount),
 			Payers: payers,
 		})
 	}
