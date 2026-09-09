@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Chance093/roomie-bills/internal/db"
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 	"github.com/Chance093/roomie-bills/internal/types"
 	"github.com/bwmarrin/discordgo"
@@ -70,6 +71,39 @@ func (dc *DiscordClient) SendNoBillsMessage() error {
 	message := "```All previous bills caught up :)```"
 
 	if _, err := dc.client.ChannelMessageSend(dc.channelId, message); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (dc *DiscordClient) SendOutstandingBills(outstandingBills []db.OutstandingBill) error {
+	var b strings.Builder
+	b.WriteString("```")
+	b.WriteString("Outstanding Bills:\n\n")
+
+	for _, bill := range outstandingBills {
+		// TODO: fix help messages
+		b.WriteString(fmt.Sprintf("#️⃣ Bill ID: %d\n", bill.Id)) // first space is an emoji
+		b.WriteString(fmt.Sprintf("📋 Bill Name: %s\n", bill.Name))
+		b.WriteString(fmt.Sprintf("💰 Total: $%.2f\n", bill.Amount))
+		b.WriteString("😠 ")
+
+		for i, payer := range bill.Payers {
+			if i == len(bill.Payers)-1 {
+				b.WriteString(fmt.Sprintf("%s ", payer))
+			} else {
+				b.WriteString(fmt.Sprintf("%s, ", payer))
+			}
+		}
+		b.WriteString(fmt.Sprintf("still owe(s) %s money!\n", bill.Payee))
+		b.WriteString("\n")
+	}
+
+	b.WriteString("Type command /paid in the channel followed by the bill id once you have paid back your roomie!\n")
+	b.WriteString("```")
+
+	if _, err := dc.client.ChannelMessageSend(dc.channelId, b.String()); err != nil {
 		return err
 	}
 

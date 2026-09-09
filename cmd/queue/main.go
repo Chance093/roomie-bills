@@ -48,6 +48,7 @@ func main() {
 	mux.HandleFunc(tasks.TypeSendBills, handler.SendBills)
 	mux.HandleFunc(tasks.TypeSendNoBills, handler.SendNoBills)
 	mux.HandleFunc(tasks.TypeGetOutstandingBills, handler.GetOutstandingBills)
+	mux.HandleFunc(tasks.TypeSendOutstandingBills, handler.SendOutstandingBills)
 
 	// spin up workers
 	srv.Run(mux)

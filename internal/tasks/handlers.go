@@ -295,8 +295,28 @@ func (h Handler) GetOutstandingBills(ctx context.Context, t bgjobs.Task) error {
 		return fmt.Errorf("Error getting unpaid bills: %w", err)
 	}
 
-	for _, bill := range outstandingBills {
-		fmt.Printf("Id: %d, Bill: %s | Total: %.2f | Payee: %s | Payers: %v\n", bill.Id, bill.Name, bill.Amount, bill.Payee, bill.Payers)
+	// create new task and enqueue
+	newTask, err := NewSendOutstandingBillsTask(outstandingBills)
+	if err != nil {
+		return err
+	}
+
+	if _, err := h.jc.Enqueue(newTask); err != nil {
+		return fmt.Errorf("Could not enqueue new task: %w", err)
+	}
+
+	return nil
+}
+
+func (h Handler) SendOutstandingBills(ctx context.Context, t bgjobs.Task) error {
+	// get payload
+	var payload SendOutstandingBillsPayload
+	if err := json.Unmarshal(t.Payload, &payload); err != nil {
+		return fmt.Errorf("Could not unmarshal json into payload: %w", err)
+	}
+
+	if err := h.dc.SendOutstandingBills(payload.OutstandingBills); err != nil {
+		return fmt.Errorf("Error sending outstanding bills: %w", err)
 	}
 
 	return nil

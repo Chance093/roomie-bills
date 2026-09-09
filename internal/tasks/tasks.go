@@ -11,18 +11,19 @@ import (
 
 // TODO: find better naming convention for these
 const (
-	TypeGetAccessToken   = "get:accessToken"
-	TypeGetBank          = "get:bank"
-	TypeUpdateBank       = "update:bank"
-	TypeGetAccounts      = "get:accounts"
-	TypeAddAccounts      = "add:accounts"
-	TypeGetAccessTokens  = "get:accessTokens"
-	TypeGetBills         = "get:bills"
-	TypeGetNewBills      = "get:new:bills"
-	TypeAddBillsPayments = "add:bills:payments"
-	TypeSendBills        = "send:bills"
-	TypeSendNoBills      = "send:nothing"
-	TypeGetOutstandingBills   = "get:outstanding:bills"
+	TypeGetAccessToken       = "get:accessToken"
+	TypeGetBank              = "get:bank"
+	TypeUpdateBank           = "update:bank"
+	TypeGetAccounts          = "get:accounts"
+	TypeAddAccounts          = "add:accounts"
+	TypeGetAccessTokens      = "get:accessTokens"
+	TypeGetBills             = "get:bills"
+	TypeGetNewBills          = "get:new:bills"
+	TypeAddBillsPayments     = "add:bills:payments"
+	TypeSendBills            = "send:bills"
+	TypeSendNoBills          = "send:nothing"
+	TypeGetOutstandingBills  = "get:outstanding:bills"
+	TypeSendOutstandingBills = "send:outstanding:bills"
 )
 
 type (
@@ -65,6 +66,10 @@ type (
 
 	SendBillsPayload struct {
 		Bills []db.Bill `json:"bills"`
+	}
+
+	SendOutstandingBillsPayload struct {
+		OutstandingBills []db.OutstandingBill `json:"outstandingBills"`
 	}
 )
 
@@ -166,5 +171,11 @@ func NewSendNoBillsTask() (*bgjobs.Task, error) {
 }
 
 func NewGetOutstandingBillsTask() (*bgjobs.Task, error) {
-  return newTask("", TypeGetOutstandingBills)
+	return newTask("", TypeGetOutstandingBills)
+}
+
+func NewSendOutstandingBillsTask(outstandingBills []db.OutstandingBill) (*bgjobs.Task, error) {
+	v := SendOutstandingBillsPayload{outstandingBills}
+
+	return newTask(v, TypeSendOutstandingBills)
 }
