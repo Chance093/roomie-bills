@@ -67,17 +67,17 @@ func (dc *DiscordClient) SendBills(bills []types.SplitBill) error {
 	return nil
 }
 
-func (dc *DiscordClient) SendNoBillsMessage() error {
-	message := "```All previous bills caught up :)```"
+func (dc *DiscordClient) SendOutstandingBills(outstandingBills []db.OutstandingBill) error {
+	if len(outstandingBills) == 0 {
+		message := "```All previous bills caught up :)```"
 
-	if _, err := dc.client.ChannelMessageSend(dc.channelId, message); err != nil {
-		return err
+		if _, err := dc.client.ChannelMessageSend(dc.channelId, message); err != nil {
+			return err
+		}
+
+		return nil
 	}
 
-	return nil
-}
-
-func (dc *DiscordClient) SendOutstandingBills(outstandingBills []db.OutstandingBill) error {
 	var b strings.Builder
 	b.WriteString("```")
 	b.WriteString("Outstanding Bills:\n\n")
@@ -104,6 +104,16 @@ func (dc *DiscordClient) SendOutstandingBills(outstandingBills []db.OutstandingB
 	b.WriteString("```")
 
 	if _, err := dc.client.ChannelMessageSend(dc.channelId, b.String()); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (dc *DiscordClient) SendNoNewBillsMessage() error {
+	message := "```No new bills :)```"
+
+	if _, err := dc.client.ChannelMessageSend(dc.channelId, message); err != nil {
 		return err
 	}
 

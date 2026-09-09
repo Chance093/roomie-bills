@@ -19,10 +19,10 @@ func main() {
 	}
 
 	pc := plaid.NewClient(env)
-  dc, err := lib.NewDiscordClient(env)
-  if err != nil {
+	dc, err := lib.NewDiscordClient(env)
+	if err != nil {
 		log.Fatalf("Could not connect to discord client: %s\n", err.Error())
-  }
+	}
 
 	redisOpts := bgjobs.RedisOpts{}
 	jc := bgjobs.NewClient(redisOpts)
@@ -46,7 +46,7 @@ func main() {
 	mux.HandleFunc(tasks.TypeGetNewBills, handler.GetNewBills)
 	mux.HandleFunc(tasks.TypeAddBillsPayments, handler.AddBillsAndPayments)
 	mux.HandleFunc(tasks.TypeSendBills, handler.SendBills)
-	mux.HandleFunc(tasks.TypeSendNoBills, handler.SendNoBills)
+	mux.HandleFunc(tasks.TypeSendNoNewBills, handler.SendNoNewBills)
 	mux.HandleFunc(tasks.TypeGetOutstandingBills, handler.GetOutstandingBills)
 	mux.HandleFunc(tasks.TypeSendOutstandingBills, handler.SendOutstandingBills)
 

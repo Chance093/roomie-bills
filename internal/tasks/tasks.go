@@ -11,19 +11,19 @@ import (
 
 // TODO: find better naming convention for these
 const (
-	TypeGetAccessToken       = "get:accessToken"
-	TypeGetBank              = "get:bank"
-	TypeUpdateBank           = "update:bank"
-	TypeGetAccounts          = "get:accounts"
-	TypeAddAccounts          = "add:accounts"
-	TypeGetAccessTokens      = "get:accessTokens"
-	TypeGetBills             = "get:bills"
-	TypeGetNewBills          = "get:new:bills"
-	TypeAddBillsPayments     = "add:bills:payments"
-	TypeSendBills            = "send:bills"
-	TypeSendNoBills          = "send:nothing"
-	TypeGetOutstandingBills  = "get:outstanding:bills"
-	TypeSendOutstandingBills = "send:outstanding:bills"
+	TypeGetAccessToken         = "get:accessToken"
+	TypeGetBank                = "get:bank"
+	TypeUpdateBank             = "update:bank"
+	TypeGetAccounts            = "get:accounts"
+	TypeAddAccounts            = "add:accounts"
+	TypeGetAccessTokens        = "get:accessTokens"
+	TypeGetBills               = "get:bills"
+	TypeGetNewBills            = "get:new:bills"
+	TypeAddBillsPayments       = "add:bills:payments"
+	TypeSendBills              = "send:bills"
+	TypeSendNoNewBills         = "send:no:bills"
+	TypeGetOutstandingBills    = "get:outstanding:bills"
+	TypeSendOutstandingBills   = "send:outstanding:bills"
 )
 
 type (
@@ -176,6 +176,6 @@ func NewSendBillsTask(bills []db.Bill) (*bgjobs.Task, error) {
 	return newTask(v, TypeSendBills)
 }
 
-func NewSendNoBillsTask() (*bgjobs.Task, error) {
-	return newTask("", TypeSendNoBills)
+func NewSendNoNewBillsTask() (*bgjobs.Task, error) {
+	return newTask("", TypeSendNoNewBills)
 }
