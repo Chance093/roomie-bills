@@ -9,12 +9,12 @@ import (
 
 // run as a cron job every saturday
 func main() {
-	// starts task pipeline for getting bills
+	// starts task pipeline for getting outstanding bills and then new bills
 	redisOpts := bgjobs.RedisOpts{}
 	jc := bgjobs.NewClient(redisOpts)
 	defer jc.Close()
 
-	newTask, err := tasks.NewGetAccessTokensTask()
+	newTask, err := tasks.NewGetOutstandingBillsTask()
 	if err != nil {
 		log.Fatalf("Could not create starting task for cron: %s", err.Error())
 	}

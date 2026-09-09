@@ -130,6 +130,16 @@ func NewAddAccountsTask(accounts []plaid.Account, bankId int) (*bgjobs.Task, err
 	return newTask(v, TypeAddAccounts)
 }
 
+func NewGetOutstandingBillsTask() (*bgjobs.Task, error) {
+	return newTask("", TypeGetOutstandingBills)
+}
+
+func NewSendOutstandingBillsTask(outstandingBills []db.OutstandingBill) (*bgjobs.Task, error) {
+	v := SendOutstandingBillsPayload{outstandingBills}
+
+	return newTask(v, TypeSendOutstandingBills)
+}
+
 func NewGetAccessTokensTask() (*bgjobs.Task, error) {
 	return newTask("", TypeGetAccessTokens)
 }
@@ -168,14 +178,4 @@ func NewSendBillsTask(bills []db.Bill) (*bgjobs.Task, error) {
 
 func NewSendNoBillsTask() (*bgjobs.Task, error) {
 	return newTask("", TypeSendNoBills)
-}
-
-func NewGetOutstandingBillsTask() (*bgjobs.Task, error) {
-	return newTask("", TypeGetOutstandingBills)
-}
-
-func NewSendOutstandingBillsTask(outstandingBills []db.OutstandingBill) (*bgjobs.Task, error) {
-	v := SendOutstandingBillsPayload{outstandingBills}
-
-	return newTask(v, TypeSendOutstandingBills)
 }

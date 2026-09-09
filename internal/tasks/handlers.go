@@ -143,6 +143,50 @@ func (h Handler) AddAccounts(ctx context.Context, t bgjobs.Task) error {
 	return nil
 }
 
+func (h Handler) GetOutstandingBills(ctx context.Context, t bgjobs.Task) error {
+	outstandingBills, err := h.db.GetOutstandingBills()
+	if err != nil {
+		return fmt.Errorf("Error getting unpaid bills: %w", err)
+	}
+
+	// create new task and enqueue
+	newTask, err := NewSendOutstandingBillsTask(outstandingBills)
+	if err != nil {
+		return err
+	}
+
+	if _, err := h.jc.Enqueue(newTask); err != nil {
+		return fmt.Errorf("Could not enqueue new task: %w", err)
+	}
+
+	return nil
+}
+
+func (h Handler) SendOutstandingBills(ctx context.Context, t bgjobs.Task) error {
+	// get payload
+	var payload SendOutstandingBillsPayload
+	if err := json.Unmarshal(t.Payload, &payload); err != nil {
+		return fmt.Errorf("Could not unmarshal json into payload: %w", err)
+	}
+
+	// send outstanding bills
+	if err := h.dc.SendOutstandingBills(payload.OutstandingBills); err != nil {
+		return fmt.Errorf("Error sending outstanding bills: %w", err)
+	}
+
+	// create new task and enqueue
+	newTask, err := NewGetAccessTokensTask()
+	if err != nil {
+		return err
+	}
+
+	if _, err := h.jc.Enqueue(newTask); err != nil {
+		return fmt.Errorf("Could not enqueue new task: %w", err)
+	}
+
+	return nil
+}
+
 func (h Handler) GetAccessTokens(ctx context.Context, t bgjobs.Task) error {
 	// get access tokens from bank table in db
 	accessTokens, err := h.db.GetBankAccessTokens()
@@ -284,39 +328,6 @@ func (h Handler) SendNoBills(ctx context.Context, t bgjobs.Task) error {
 	// send discord message letting them know there are no new bills
 	if err := h.dc.SendNoBillsMessage(); err != nil {
 		return fmt.Errorf("Error sending no bills message: %w", err)
-	}
-
-	return nil
-}
-
-func (h Handler) GetOutstandingBills(ctx context.Context, t bgjobs.Task) error {
-	outstandingBills, err := h.db.GetOutstandingBills()
-	if err != nil {
-		return fmt.Errorf("Error getting unpaid bills: %w", err)
-	}
-
-	// create new task and enqueue
-	newTask, err := NewSendOutstandingBillsTask(outstandingBills)
-	if err != nil {
-		return err
-	}
-
-	if _, err := h.jc.Enqueue(newTask); err != nil {
-		return fmt.Errorf("Could not enqueue new task: %w", err)
-	}
-
-	return nil
-}
-
-func (h Handler) SendOutstandingBills(ctx context.Context, t bgjobs.Task) error {
-	// get payload
-	var payload SendOutstandingBillsPayload
-	if err := json.Unmarshal(t.Payload, &payload); err != nil {
-		return fmt.Errorf("Could not unmarshal json into payload: %w", err)
-	}
-
-	if err := h.dc.SendOutstandingBills(payload.OutstandingBills); err != nil {
-		return fmt.Errorf("Error sending outstanding bills: %w", err)
 	}
 
 	return nil
