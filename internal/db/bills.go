@@ -277,3 +277,12 @@ func (db *DB) GetOutstandingBills() ([]OutstandingBill, error) {
 
 	return outstandingBills, nil
 }
+
+func (db *DB) MarkBillPaid(billId int64, roomie string) error {
+	sqlStatement := `UPDATE payments SET status = "Paid", updated_at = ? WHERE bill_id = ? AND roomie_id = (SELECT id FROM roomies WHERE name = ?);`
+	if _, err := db.Exec(sqlStatement, time.Now(), billId, roomie); err != nil {
+		return fmt.Errorf("Error while updating payment with bill id [%d] and roomie name [%s]: %w", billId, roomie, err)
+	}
+
+	return nil
+}
