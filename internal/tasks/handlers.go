@@ -310,6 +310,8 @@ func (h Handler) SendBills(ctx context.Context, t bgjobs.Task) error {
 		return fmt.Errorf("Error while sending bills to discord: %w", err)
 	}
 
+  // TODO: enqueue bills command update in discord task
+
 	return nil
 }
 

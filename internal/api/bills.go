@@ -5,11 +5,32 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 )
 
-type BillPaidPayload struct {
-	DiscordRoomie string `json:"discordRoomie"`
+type DiscordInteractionPayload struct {
+	Type   int                    `json:"type"`
+	Data   DiscordInteractionData `json:"data"`
+	Member DiscordGuildMember     `json:"member"`
+}
+
+type DiscordInteractionData struct {
+	Name    string                `json:"name"`
+	Type    int                   `json:"type"`
+	Options DiscordCommandOptions `json:"options"`
+}
+
+type DiscordCommandOptions struct {
+	Name  string `json:"name"`
+	Type  int    `json:"type"`
+	Value int64  `json:"value"`
+}
+
+type DiscordGuildMember struct {
+	User DiscordUser `json:"user"`
+}
+
+type DiscordUser struct {
+	Username string `json:"username"`
 }
 
 var DiscordToRoomieMap = map[string]string{
@@ -20,14 +41,9 @@ var DiscordToRoomieMap = map[string]string{
 }
 
 func (s Server) billPaidHandler(w http.ResponseWriter, r *http.Request) {
-	billId, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		writeError(w, http.StatusUnprocessableEntity, errors.New("Invalid bill id set in path"))
-		return
-	}
-
+  // do some validation here
 	// parse request json
-	var payload BillPaidPayload
+	var payload DiscordInteractionPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		writeError(w, http.StatusUnprocessableEntity, fmt.Errorf("error decoding json: %w", err))
 		return
@@ -35,17 +51,20 @@ func (s Server) billPaidHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	// Get roomie name from discord name
-	roomie, ok := DiscordToRoomieMap[payload.DiscordRoomie]
+  discordUser := payload.Member.User.Username
+	roomie, ok := DiscordToRoomieMap[discordUser]
 	if !ok {
-		writeError(w, http.StatusBadRequest, fmt.Errorf("Discord user [%s] not recognized", payload.DiscordRoomie))
+		writeError(w, http.StatusBadRequest, fmt.Errorf("Discord user [%s] not recognized", discordUser))
 		return
 	}
 
 	// Mark bill paid by roomie in database
-	if err := s.DB.MarkBillPaid(billId, roomie); err != nil {
+	if err := s.DB.MarkBillPaid(payload.Data.Options.Value, roomie); err != nil {
 		writeError(w, http.StatusInternalServerError, errors.New("Internal Server Error"))
 		return
 	}
+
+	// TODO: update bills command in discord to show only unpaid bills
 
 	w.WriteHeader(http.StatusNoContent)
 }

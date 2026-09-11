@@ -29,7 +29,7 @@ func NewServer(port string, pc plaid.Client, jc bgjobs.Client, db *db.DB) *Serve
 	}
 
 	s.Router.HandleFunc("POST /webhooks/plaid", s.plaidWebhookHandler)
-	s.Router.HandleFunc("PUT /bills/{id}/paid", s.billPaidHandler)
+	s.Router.HandleFunc("POST /discord/interactions", s.billPaidHandler)
 
 	return s
 }
