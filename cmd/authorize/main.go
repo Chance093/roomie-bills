@@ -10,7 +10,7 @@ import (
 
 	"github.com/Chance093/roomie-bills/internal/cfg"
 	"github.com/Chance093/roomie-bills/internal/db"
-	"github.com/Chance093/roomie-bills/internal/lib"
+	"github.com/Chance093/roomie-bills/internal/lib/discord"
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 	"github.com/Chance093/roomie-bills/internal/utils"
 )
@@ -45,7 +45,7 @@ func main() {
 	}
 
 	// send url to discord channel
-	dc, err := lib.NewDiscordClient(env)
+	dc, err := discord.NewClient(env)
 	if err != nil {
 		log.Fatal(err)
 	}

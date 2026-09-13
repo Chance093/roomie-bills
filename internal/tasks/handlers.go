@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/Chance093/roomie-bills/internal/db"
-	"github.com/Chance093/roomie-bills/internal/lib"
 	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
+	"github.com/Chance093/roomie-bills/internal/lib/discord"
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 	"github.com/Chance093/roomie-bills/internal/types"
 	"github.com/Chance093/roomie-bills/internal/utils"
@@ -16,11 +16,11 @@ import (
 type Handler struct {
 	pc plaid.Client
 	jc bgjobs.Client
-	dc lib.DiscordClient
+	dc discord.Client
 	db *db.DB
 }
 
-func NewHandler(pc plaid.Client, jc bgjobs.Client, dc lib.DiscordClient, db *db.DB) Handler {
+func NewHandler(pc plaid.Client, jc bgjobs.Client, dc discord.Client, db *db.DB) Handler {
 	return Handler{pc, jc, dc, db}
 }
 
@@ -310,7 +310,7 @@ func (h Handler) SendBills(ctx context.Context, t bgjobs.Task) error {
 		return fmt.Errorf("Error while sending bills to discord: %w", err)
 	}
 
-  // TODO: enqueue bills command update in discord task
+	// TODO: enqueue bills command update in discord task
 
 	return nil
 }

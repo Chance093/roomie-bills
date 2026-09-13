@@ -5,8 +5,8 @@ import (
 
 	"github.com/Chance093/roomie-bills/internal/cfg"
 	"github.com/Chance093/roomie-bills/internal/db"
-	"github.com/Chance093/roomie-bills/internal/lib"
 	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
+	"github.com/Chance093/roomie-bills/internal/lib/discord"
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 	"github.com/Chance093/roomie-bills/internal/tasks"
 )
@@ -19,7 +19,7 @@ func main() {
 	}
 
 	pc := plaid.NewClient(env)
-	dc, err := lib.NewDiscordClient(env)
+	dc, err := discord.NewClient(env)
 	if err != nil {
 		log.Fatalf("Could not connect to discord client: %s\n", err.Error())
 	}

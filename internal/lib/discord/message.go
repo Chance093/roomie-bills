@@ -1,4 +1,4 @@
-package lib
+package discord
 
 import (
 	"fmt"
@@ -7,28 +7,14 @@ import (
 	"github.com/Chance093/roomie-bills/internal/db"
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 	"github.com/Chance093/roomie-bills/internal/types"
-	"github.com/bwmarrin/discordgo"
 )
 
-type DiscordClient struct {
-	client    *discordgo.Session
-	channelId string
-}
-
-func NewDiscordClient(env map[string]string) (DiscordClient, error) {
-	client, err := discordgo.New("Bot " + env["DISCORD_TOKEN"])
-	if err != nil {
-		return DiscordClient{}, err
-	}
-	return DiscordClient{client: client, channelId: env["DISCORD_CHANNEL_ID"]}, nil
-}
-
-func (dc *DiscordClient) SendHostedLink(roomie, hostedLink string) error {
+func (c *Client) SendHostedLink(roomie, hostedLink string) error {
 	messageOne := fmt.Sprintf("A link has been requested for %s.\n", roomie)
 	messageTwo := fmt.Sprintf("Plaid link: %s", hostedLink)
 	finalMessage := messageOne + messageTwo
 
-	if _, err := dc.client.ChannelMessageSend(dc.channelId, finalMessage); err != nil {
+	if _, err := c.ChannelMessageSend(c.channelId, finalMessage); err != nil {
 		return err
 	}
 
@@ -42,7 +28,8 @@ type SplitBill struct {
 	Split float64
 }
 
-func (dc *DiscordClient) SendBills(bills []types.SplitBill) error {
+// TODO: combine this with send no bills message
+func (c *Client) SendBills(bills []types.SplitBill) error {
 	var b strings.Builder
 	b.WriteString("```")
 	b.WriteString("New Bills:\n\n")
@@ -60,18 +47,18 @@ func (dc *DiscordClient) SendBills(bills []types.SplitBill) error {
 	b.WriteString("Type command /paid in the channel followed by the bill id once you have paid back your roomie!\n")
 	b.WriteString("```")
 
-	if _, err := dc.client.ChannelMessageSend(dc.channelId, b.String()); err != nil {
+	if _, err := c.ChannelMessageSend(c.channelId, b.String()); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (dc *DiscordClient) SendOutstandingBills(outstandingBills []db.OutstandingBill) error {
+func (c *Client) SendOutstandingBills(outstandingBills []db.OutstandingBill) error {
 	if len(outstandingBills) == 0 {
 		message := "```All previous bills caught up :)```"
 
-		if _, err := dc.client.ChannelMessageSend(dc.channelId, message); err != nil {
+		if _, err := c.ChannelMessageSend(c.channelId, message); err != nil {
 			return err
 		}
 
@@ -116,17 +103,17 @@ func (dc *DiscordClient) SendOutstandingBills(outstandingBills []db.OutstandingB
 	b.WriteString("Type command /paid in the channel followed by the bill id once you have paid back your roomie!\n")
 	b.WriteString("```")
 
-	if _, err := dc.client.ChannelMessageSend(dc.channelId, b.String()); err != nil {
+	if _, err := c.ChannelMessageSend(c.channelId, b.String()); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (dc *DiscordClient) SendNoNewBillsMessage() error {
+func (c *Client) SendNoNewBillsMessage() error {
 	message := "```No new bills :)```"
 
-	if _, err := dc.client.ChannelMessageSend(dc.channelId, message); err != nil {
+	if _, err := c.ChannelMessageSend(c.channelId, message); err != nil {
 		return err
 	}
 
