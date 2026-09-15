@@ -286,3 +286,28 @@ func (db *DB) MarkBillPaid(billId int64, roomie string) error {
 
 	return nil
 }
+
+func (db *DB) GetUnpaidBillIds() ([]int64, error) {
+	sqlQuery := `SELECT DISTINCT bill_id FROM payments WHERE status = "Pending"`
+	rows, err := db.Query(sqlQuery)
+	if err != nil {
+		return nil, fmt.Errorf("Error querying unpaid bill id's: %w", err)
+	}
+	defer rows.Close()
+
+	var unpaidBillIds []int64
+	for rows.Next() {
+		var unpaidBillId int64
+		if err := rows.Scan(&unpaidBillId); err != nil {
+			return nil, fmt.Errorf("Failed to scan row for unpaid bill id: %w", err)
+		}
+
+		unpaidBillIds = append(unpaidBillIds, unpaidBillId)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("Error while iterating through rows: %w", err)
+	}
+
+	return unpaidBillIds, nil
+}

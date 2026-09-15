@@ -52,8 +52,12 @@ func (s Server) billPaidHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// TODO: do actual db search to get these
-		unpaidBillIds := []int64{}
+		// get unpaid bill id's and reset /paid command
+		unpaidBillIds, err := s.DB.GetUnpaidBillIds()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, errors.New("Internal Server Error"))
+			return
+		}
 
 		if err := s.dc.SetCommands(unpaidBillIds); err != nil {
 			writeError(w, http.StatusBadGateway, fmt.Errorf("Bad Gateway: %w", err))
@@ -64,5 +68,6 @@ func (s Server) billPaidHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: error handling here (unknown interaction)
+	// send error for unknown interaction
+	writeError(w, http.StatusBadRequest, errors.New("Unknown interaction type"))
 }
