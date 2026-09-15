@@ -310,7 +310,50 @@ func (h Handler) SendBills(ctx context.Context, t bgjobs.Task) error {
 		return fmt.Errorf("Error while sending bills to discord: %w", err)
 	}
 
-	// TODO: enqueue bills command update in discord task
+	// create new task and enqueue
+	newTask, err := NewGetUnpaidBillIdsTask()
+	if err != nil {
+		return err
+	}
+
+	if _, err := h.jc.Enqueue(newTask); err != nil {
+		return fmt.Errorf("Could not enqueue new task: %w", err)
+	}
+
+	return nil
+}
+
+func (h Handler) GetUnpaidBillIds(ctx context.Context, t bgjobs.Task) error {
+	// get unpaid bill id's
+	unpaidBillIds, err := h.db.GetUnpaidBillIds()
+	if err != nil {
+		return fmt.Errorf("Error while getting unpaid bill ids: %w", err)
+	}
+
+	// create new task and enqueue
+	newTask, err := NewSetDiscordCommandsTask(unpaidBillIds)
+	if err != nil {
+		return err
+	}
+
+	if _, err := h.jc.Enqueue(newTask); err != nil {
+		return fmt.Errorf("Could not enqueue new task: %w", err)
+	}
+
+	return nil
+}
+
+func (h Handler) SetDiscordCommands(ctx context.Context, t bgjobs.Task) error {
+	// get payload
+	var payload SetDiscordCommandsPayload
+	if err := json.Unmarshal(t.Payload, &payload); err != nil {
+		return fmt.Errorf("Could not unmarshal json into payload: %w", err)
+	}
+
+	// reset /paid command
+	if err := h.dc.SetCommands(payload.UnpaidBillIds); err != nil {
+		return fmt.Errorf("Failed to reset discord command: %w", err)
+	}
 
 	return nil
 }

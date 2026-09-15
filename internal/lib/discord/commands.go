@@ -38,7 +38,7 @@ func (c Client) SetCommands(billIds []int64) error {
 			Description: "Mark a bill paid by roomie",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
-					Name:        "Bill Id",
+					Name:        "bill",
 					Description: "The id of bill that was paid",
 					Type:        discordgo.ApplicationCommandOptionInteger,
 					Required:    true,
@@ -49,6 +49,7 @@ func (c Client) SetCommands(billIds []int64) error {
 	}
 
 	if _, err := c.ApplicationCommandBulkOverwrite(c.appId, c.guildId, commands); err != nil {
+		fmt.Println(err)
 		return fmt.Errorf("Failed to bulk overwrite discord slash commands: %w", err)
 	}
 

@@ -46,6 +46,8 @@ func main() {
 	mux.HandleFunc(tasks.TypeGetNewBills, handler.GetNewBills)
 	mux.HandleFunc(tasks.TypeAddBillsPayments, handler.AddBillsAndPayments)
 	mux.HandleFunc(tasks.TypeSendBills, handler.SendBills)
+	mux.HandleFunc(tasks.TypeGetUnpaidBillIds, handler.GetUnpaidBillIds)
+	mux.HandleFunc(tasks.TypeSetDiscordCommands, handler.SetDiscordCommands)
 	mux.HandleFunc(tasks.TypeSendNoNewBills, handler.SendNoNewBills)
 	mux.HandleFunc(tasks.TypeGetOutstandingBills, handler.GetOutstandingBills)
 	mux.HandleFunc(tasks.TypeSendOutstandingBills, handler.SendOutstandingBills)

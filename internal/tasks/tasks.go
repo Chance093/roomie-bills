@@ -11,19 +11,21 @@ import (
 
 // TODO: find better naming convention for these
 const (
-	TypeGetAccessToken         = "get:accessToken"
-	TypeGetBank                = "get:bank"
-	TypeUpdateBank             = "update:bank"
-	TypeGetAccounts            = "get:accounts"
-	TypeAddAccounts            = "add:accounts"
-	TypeGetAccessTokens        = "get:accessTokens"
-	TypeGetBills               = "get:bills"
-	TypeGetNewBills            = "get:new:bills"
-	TypeAddBillsPayments       = "add:bills:payments"
-	TypeSendBills              = "send:bills"
-	TypeSendNoNewBills         = "send:no:bills"
-	TypeGetOutstandingBills    = "get:outstanding:bills"
-	TypeSendOutstandingBills   = "send:outstanding:bills"
+	TypeGetAccessToken       = "get:accessToken"
+	TypeGetBank              = "get:bank"
+	TypeUpdateBank           = "update:bank"
+	TypeGetAccounts          = "get:accounts"
+	TypeAddAccounts          = "add:accounts"
+	TypeGetAccessTokens      = "get:accessTokens"
+	TypeGetBills             = "get:bills"
+	TypeGetNewBills          = "get:new:bills"
+	TypeAddBillsPayments     = "add:bills:payments"
+	TypeSendBills            = "send:bills"
+	TypeSendNoNewBills       = "send:no:bills"
+	TypeGetOutstandingBills  = "get:outstanding:bills"
+	TypeSendOutstandingBills = "send:outstanding:bills"
+	TypeGetUnpaidBillIds     = "get:unpaid:billIds"
+	TypeSetDiscordCommands   = "set:discord:commands"
 )
 
 type (
@@ -70,6 +72,10 @@ type (
 
 	SendOutstandingBillsPayload struct {
 		OutstandingBills []db.OutstandingBill `json:"outstandingBills"`
+	}
+
+	SetDiscordCommandsPayload struct {
+		UnpaidBillIds []int64 `json:"unpaidBillIds"`
 	}
 )
 
@@ -174,6 +180,18 @@ func NewSendBillsTask(bills []db.Bill) (*bgjobs.Task, error) {
 	}
 
 	return newTask(v, TypeSendBills)
+}
+
+func NewGetUnpaidBillIdsTask() (*bgjobs.Task, error) {
+	return newTask("", TypeGetUnpaidBillIds)
+}
+
+func NewSetDiscordCommandsTask(unpaidBillIds []int64) (*bgjobs.Task, error) {
+	v := SetDiscordCommandsPayload{
+		UnpaidBillIds: unpaidBillIds,
+	}
+
+	return newTask(v, TypeSetDiscordCommands)
 }
 
 func NewSendNoNewBillsTask() (*bgjobs.Task, error) {
