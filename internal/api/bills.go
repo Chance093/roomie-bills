@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,26 +10,41 @@ import (
 )
 
 func (s Server) billPaidHandler(w http.ResponseWriter, r *http.Request) {
+	// verify headers and decode interaction payload
 	if ok := s.dc.VerifyInteraction(r); !ok {
-		// TODO: error handling
+		writeError(w, http.StatusUnauthorized, errors.New("Unauthorized"))
 		return
 	}
 
-	payload, err := s.dc.DecodeInteraction(r.Body)
+	interaction, err := s.dc.DecodeInteraction(r.Body)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Errorf("Error while getting roomie and bill id: %w", err))
 		return
 	}
+	defer r.Body.Close()
 
-	// TODO: ping request, send back pong
-	if payload.Type == discord.InteractionPing {
+	// ping interaction
+	if interaction.Type == discord.InteractionPing {
+		type PongResponse struct {
+			Type discord.InteractionResponseType `json:"type"`
+		}
+
+		b, err := json.Marshal(PongResponse{discord.InteractionResponsePong})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, errors.New("Internal Server Error"))
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write(b)
+		return
 	}
 
-	if payload.Type == discord.InteractionApplicationCommand {
-		info, err := s.dc.GetRoomieAndBill(payload)
+	// slash command interaction
+	if interaction.Type == discord.InteractionApplicationCommand {
+		info, err := s.dc.GetRoomieAndBill(interaction)
 		if err != nil {
 		}
-		defer r.Body.Close()
 
 		// Mark bill paid by roomie in database
 		if err := s.DB.MarkBillPaid(info.BillId, info.Roomie); err != nil {
@@ -45,6 +61,7 @@ func (s Server) billPaidHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+		return
 	}
 
 	// TODO: error handling here (unknown interaction)

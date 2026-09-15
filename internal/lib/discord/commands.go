@@ -11,6 +11,8 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+type InteractionResponseType = discordgo.InteractionResponseType
+
 var (
 	InteractionPing                             = discordgo.InteractionPing
 	InteractionApplicationCommand               = discordgo.InteractionApplicationCommand
