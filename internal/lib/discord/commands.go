@@ -1,12 +1,21 @@
 package discord
 
 import (
+	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"strconv"
 
 	"github.com/bwmarrin/discordgo"
+)
+
+var (
+	InteractionPing                             = discordgo.InteractionPing
+	InteractionApplicationCommand               = discordgo.InteractionApplicationCommand
+	InteractionResponsePong                     = discordgo.InteractionResponsePong
+	InteractionResponseChannelMessageWithSource = discordgo.InteractionResponseChannelMessageWithSource
 )
 
 func (c Client) SetCommands(billIds []int64) error {
@@ -49,17 +58,27 @@ var DiscordToRoomieMap = map[string]string{
 	"Madison":       "Madison",
 }
 
+type Interaction = discordgo.Interaction
+
 type InteractionInfo struct {
 	BillId int64
 	Roomie string
 }
 
-func (c Client) GetRoomieAndBill(body io.ReadCloser) (InteractionInfo, error) {
-	var payload discordgo.Interaction
+func (c Client) VerifyInteraction(r *http.Request) bool {
+	return discordgo.VerifyInteraction(r, ed25519.PublicKey("")) // TODO: fill in with public key
+}
+
+func (c Client) DecodeInteraction(body io.ReadCloser) (Interaction, error) {
+	var payload Interaction
 	if err := json.NewDecoder(body).Decode(&payload); err != nil {
-		return InteractionInfo{}, nil
+		return Interaction{}, err
 	}
 
+	return payload, nil
+}
+
+func (c Client) GetRoomieAndBill(payload Interaction) (InteractionInfo, error) {
 	// Get roomie name from discord name
 	discordUser := payload.Member.User.Username
 	roomie, ok := DiscordToRoomieMap[discordUser]
