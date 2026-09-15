@@ -15,8 +15,11 @@ func GetEnv() (map[string]string, error) {
 	envNames := []string{
 		"PLAID_CLIENT_ID",
 		"PLAID_SANDBOX_SECRET",
+		"DISCORD_APP_ID",
+		"DISCORD_PUBLIC_KEY",
 		"DISCORD_TOKEN",
 		"DISCORD_CHANNEL_ID",
+		"DISCORD_GUILD_ID",
 		"DOMAIN",
 	}
 

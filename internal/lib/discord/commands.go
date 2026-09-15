@@ -48,8 +48,7 @@ func (c Client) SetCommands(billIds []int64) error {
 		},
 	}
 
-	// TODO: fill in appId and guildId
-	if _, err := c.ApplicationCommandBulkOverwrite("", "", commands); err != nil {
+	if _, err := c.ApplicationCommandBulkOverwrite(c.appId, c.guildId, commands); err != nil {
 		return fmt.Errorf("Failed to bulk overwrite discord slash commands: %w", err)
 	}
 
@@ -71,7 +70,7 @@ type InteractionInfo struct {
 }
 
 func (c Client) VerifyInteraction(r *http.Request) bool {
-	return discordgo.VerifyInteraction(r, ed25519.PublicKey("")) // TODO: fill in with public key
+	return discordgo.VerifyInteraction(r, ed25519.PublicKey(c.publicKey))
 }
 
 func (c Client) DecodeInteraction(body io.ReadCloser) (Interaction, error) {

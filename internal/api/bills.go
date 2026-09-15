@@ -58,6 +58,7 @@ func (s Server) billPaidHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// respond to discord channel
 		if err := s.dc.RespondToDiscordChannel(&interaction, &discord.InteractionResponse{
 			Type: discord.InteractionResponseChannelMessageWithSource,
 			Data: &discord.InteractionResponseData{
