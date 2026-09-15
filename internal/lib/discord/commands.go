@@ -11,7 +11,10 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-type InteractionResponseType = discordgo.InteractionResponseType
+type (
+	InteractionResponse     = discordgo.InteractionResponse
+	InteractionResponseData = discordgo.InteractionResponseData
+)
 
 var (
 	InteractionPing                             = discordgo.InteractionPing
@@ -90,4 +93,12 @@ func (c Client) GetRoomieAndBill(payload Interaction) (InteractionInfo, error) {
 
 	// TODO: get actual value
 	return InteractionInfo{0, roomie}, nil
+}
+
+func (c Client) RespondToDiscordChannel(i *Interaction, res *InteractionResponse) error {
+	if err := c.InteractionRespond(i, res); err != nil {
+		return fmt.Errorf("Error while responding to interaction: %w", err)
+	}
+
+	return nil
 }

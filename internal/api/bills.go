@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -25,18 +24,13 @@ func (s Server) billPaidHandler(w http.ResponseWriter, r *http.Request) {
 
 	// ping interaction
 	if interaction.Type == discord.InteractionPing {
-		type PongResponse struct {
-			Type discord.InteractionResponseType `json:"type"`
-		}
-
-		b, err := json.Marshal(PongResponse{discord.InteractionResponsePong})
-		if err != nil {
+		if err := s.dc.RespondToDiscordChannel(&interaction, &discord.InteractionResponse{
+			Type: discord.InteractionResponsePong,
+		}); err != nil {
 			writeError(w, http.StatusInternalServerError, errors.New("Internal Server Error"))
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
-		w.Write(b)
 		return
 	}
 
@@ -64,7 +58,16 @@ func (s Server) billPaidHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		w.WriteHeader(http.StatusNoContent)
+		if err := s.dc.RespondToDiscordChannel(&interaction, &discord.InteractionResponse{
+			Type: discord.InteractionResponseChannelMessageWithSource,
+			Data: &discord.InteractionResponseData{
+				Content: "Thank you for making a payment :)",
+			},
+		}); err != nil {
+			writeError(w, http.StatusInternalServerError, errors.New("Internal Server Error"))
+			return
+		}
+
 		return
 	}
 
