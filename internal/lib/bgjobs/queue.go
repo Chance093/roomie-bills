@@ -59,6 +59,7 @@ func newPrimaryQueue(rdb *redis.Client) queue {
 	return newQueue(Primary, rdb)
 }
 
+// TODO: implement a check to see if task has been in temp queue for too long
 func newTempQueue(rdb *redis.Client) queue {
 	return newQueue(Temp, rdb)
 }

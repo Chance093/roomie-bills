@@ -40,6 +40,7 @@ func (s Server) billPaidHandler(w http.ResponseWriter, r *http.Request) {
 
 	// slash command interaction
 	if interaction.Type == discord.InteractionApplicationCommand {
+		// TODO: Make sure interaction name is "paid"
 		info, err := s.dc.GetRoomieAndBill(interaction)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err)
