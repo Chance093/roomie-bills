@@ -75,7 +75,6 @@ func (s Server) billPaidHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fmt.Println("responded")
 		return
 	}
 
