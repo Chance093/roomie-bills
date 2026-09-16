@@ -7,13 +7,19 @@
 - [x] Create funcs to split bills 4 ways
 - [x] Save bills to db
 - [x] Create discord package
-- [ ] Convert cron jobs to use message queue (for retries)
-- [ ] Use decimal package to track money for bills
-- [ ] Give proper info to bills discord message (bill id, roomie)
-- [ ] Create cron job to send weekly reminders for previous bills
-- [ ] Create api endpoint that marks a bill paid by a roomie
-- [ ] Set up discord command that hits above api endpoint
-- [ ] Do all todos
+- [x] Convert cron jobs to use message queue (for retries)
+- [x] Give proper info to bills discord message (bill id, roomie)
+- [x] Create cron job to send weekly reminders for previous bills
+- [x] Create api endpoint that marks a bill paid by a roomie
+- [x] Set up discord command that hits above api endpoint
+- [ ] Do all todos comments
+- [ ] Add good logging
+- [ ] Refactor every package
+- [ ] Write tests
+- [ ] Deploy manually without helpers
+- [ ] Rewrite deployment to use CI/CD
+- [ ] Final Review
+- [ ] Rewrite this README
 ### Message Format
 
 Your format is a good start, but I'd expand it a bit to make it more actionable:
