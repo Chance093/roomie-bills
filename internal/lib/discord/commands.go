@@ -1,8 +1,9 @@
 package discord
 
 import (
-	"crypto/ed25519"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -57,10 +58,10 @@ func (c Client) SetCommands(billIds []int64) error {
 }
 
 var DiscordToRoomieMap = map[string]string{
-	"kanwoody":      "Kane",
-	"Alexraaee":     "Alex",
-	"ChanceyBoyyyy": "Chance",
-	"Madison":       "Madison",
+	"kanwoody":        "Kane",
+	"alexraaee_49709": "Alex",
+	"chanceyboyyyyy":  "Chance",
+	"madison04547":    "Madison",
 }
 
 type Interaction = discordgo.Interaction
@@ -71,7 +72,12 @@ type InteractionInfo struct {
 }
 
 func (c Client) VerifyInteraction(r *http.Request) bool {
-	return discordgo.VerifyInteraction(r, ed25519.PublicKey(c.publicKey))
+	pubKeyBytes, err := hex.DecodeString(c.publicKey)
+	if err != nil {
+		return false
+	}
+
+	return discordgo.VerifyInteraction(r, pubKeyBytes)
 }
 
 func (c Client) DecodeInteraction(body io.ReadCloser) (Interaction, error) {
@@ -83,16 +89,44 @@ func (c Client) DecodeInteraction(body io.ReadCloser) (Interaction, error) {
 	return payload, nil
 }
 
-func (c Client) GetRoomieAndBill(payload Interaction) (InteractionInfo, error) {
-	// Get roomie name from discord name
-	discordUser := payload.Member.User.Username
-	roomie, ok := DiscordToRoomieMap[discordUser]
-	if !ok {
-		return InteractionInfo{}, nil
+func (c Client) GetRoomieAndBill(i Interaction) (InteractionInfo, error) {
+	// validate
+	if i.Type != discordgo.InteractionApplicationCommand {
+		return InteractionInfo{}, fmt.Errorf("Unexpected interaction type: %s", i.Type)
 	}
 
-	// TODO: get actual value
-	return InteractionInfo{0, roomie}, nil
+	data := i.ApplicationCommandData()
+	if data.Name != "paid" {
+		return InteractionInfo{}, fmt.Errorf("Unexpected interaction name: %s", data.Name)
+	}
+
+	// Get roomie name from discord name
+	discordUser := i.Member.User.Username
+	roomie, ok := DiscordToRoomieMap[discordUser]
+	if !ok {
+		return InteractionInfo{}, fmt.Errorf("Could not map discord user to roomie name: %s", discordUser)
+	}
+
+	// Get bill id
+	var billId int64
+	opts := parseOptions(data.Options)
+	if v, ok := opts["bill"]; ok && v.IntValue() != 0 {
+		billId = v.IntValue()
+	} else {
+		return InteractionInfo{}, errors.New("Could not find bill option in interaction data")
+	}
+
+	return InteractionInfo{billId, roomie}, nil
+}
+
+type optionMap = map[string]*discordgo.ApplicationCommandInteractionDataOption
+
+func parseOptions(options []*discordgo.ApplicationCommandInteractionDataOption) (om optionMap) {
+	om = make(optionMap)
+	for _, opt := range options {
+		om[opt.Name] = opt
+	}
+	return
 }
 
 func (c Client) RespondToDiscordChannel(i *Interaction, res *InteractionResponse) error {

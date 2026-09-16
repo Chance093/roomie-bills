@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -24,13 +25,16 @@ func (s Server) billPaidHandler(w http.ResponseWriter, r *http.Request) {
 
 	// ping interaction
 	if interaction.Type == discord.InteractionPing {
-		if err := s.dc.RespondToDiscordChannel(&interaction, &discord.InteractionResponse{
+		b, err := json.Marshal(discord.InteractionResponse{
 			Type: discord.InteractionResponsePong,
-		}); err != nil {
-			writeError(w, http.StatusInternalServerError, errors.New("Internal Server Error"))
+		})
+		if err != nil {
+			fmt.Println(err)
+			writeError(w, http.StatusInternalServerError, errors.New("internal server error"))
 			return
 		}
 
+		w.Write(b)
 		return
 	}
 
@@ -38,6 +42,8 @@ func (s Server) billPaidHandler(w http.ResponseWriter, r *http.Request) {
 	if interaction.Type == discord.InteractionApplicationCommand {
 		info, err := s.dc.GetRoomieAndBill(interaction)
 		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
 		}
 
 		// Mark bill paid by roomie in database
@@ -65,13 +71,15 @@ func (s Server) billPaidHandler(w http.ResponseWriter, r *http.Request) {
 				Content: "Thank you for making a payment :)",
 			},
 		}); err != nil {
-			writeError(w, http.StatusInternalServerError, errors.New("Internal Server Error"))
+			writeError(w, http.StatusInternalServerError, errors.New("internal server error"))
 			return
 		}
 
+		fmt.Println("responded")
 		return
 	}
 
 	// send error for unknown interaction
 	writeError(w, http.StatusBadRequest, errors.New("Unknown interaction type"))
+	return
 }
