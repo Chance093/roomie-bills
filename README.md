@@ -13,7 +13,8 @@
 - [x] Create cron job to send weekly reminders for previous bills
 - [x] Create api endpoint that marks a bill paid by a roomie
 - [x] Set up discord command that hits above api endpoint
-- [ ] Get plaid working with actual transactions
+- [x] Get plaid working with actual transactions
+- [ ] Find a way to split electric bill
 - [ ] Do all todos comments
 - [ ] Add good logging
 - [ ] Refactor every package

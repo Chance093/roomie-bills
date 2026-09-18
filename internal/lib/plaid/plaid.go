@@ -3,6 +3,7 @@ package plaid
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -182,7 +183,8 @@ func (c Client) GetBills(ctx context.Context, accessTokens []string) ([]Bill, er
 
 func (c Client) getBills(ctx context.Context, accessToken string, billChan chan<- Bill) {
 	const iso8601TimeFormat = "2006-01-02"
-	startDate := time.Now().Add(-7 * 24 * time.Hour).Format(iso8601TimeFormat) // TODO: change start date after testing
+	// start 8 days ago and end today
+	startDate := time.Now().Add(-8 * 24 * time.Hour).Format(iso8601TimeFormat)
 	endDate := time.Now().Format(iso8601TimeFormat)
 
 	request := plaid.NewTransactionsGetRequest(
@@ -205,19 +207,19 @@ func (c Client) getBills(ctx context.Context, accessToken string, billChan chan<
 	for _, transaction := range res.GetTransactions() {
 		payee := transaction.GetName()
 
-		// TODO: check if transaction is a bill
-		/*
-			if payee != "insert bill names here" {
-				continue
-			}
-		*/
+		if strings.Contains(payee, "Lasvegasvalleywater") ||
+			strings.Contains(payee, "Cox Comm") ||
+			strings.Contains(payee, "Southwest Gas") ||
+			strings.Contains(payee, "Lighthouse") || // TODO: find actual name
+			strings.Contains(payee, "NV Energy") { // TODO: find actual name
 
-		billChan <- Bill{
-			Id:        transaction.GetTransactionId(),
-			AccountId: transaction.GetAccountId(),
-			Payee:     payee,
-			Date:      transaction.GetDate(),
-			Total:     transaction.GetAmount(),
+			billChan <- Bill{
+				Id:        transaction.GetTransactionId(),
+				AccountId: transaction.GetAccountId(),
+				Payee:     payee,
+				Date:      transaction.GetDate(),
+				Total:     transaction.GetAmount(),
+			}
 		}
 	}
 }
