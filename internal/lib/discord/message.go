@@ -10,11 +10,11 @@ import (
 )
 
 func (c *Client) SendHostedLink(roomie, hostedLink string) error {
-	messageOne := fmt.Sprintf("A link has been requested for %s.\n", roomie)
-	messageTwo := fmt.Sprintf("Plaid link: %s", hostedLink)
-	finalMessage := messageOne + messageTwo
+	var b strings.Builder
+	fmt.Fprintf(&b, "A link has been requested for %s.\n", roomie)
+	fmt.Fprintf(&b, "Plaid link: %s", hostedLink)
 
-	if _, err := c.ChannelMessageSend(c.channelId, finalMessage); err != nil {
+	if _, err := c.ChannelMessageSend(c.channelId, b.String()); err != nil {
 		return err
 	}
 
@@ -35,12 +35,11 @@ func (c *Client) SendBills(bills []types.SplitBill) error {
 	b.WriteString("New Bills:\n\n")
 
 	for _, bill := range bills {
-		// TODO: fix help messages
-		b.WriteString(fmt.Sprintf("#️⃣ Bill ID: %d\n", bill.Id)) // first space is an emoji
-		b.WriteString(fmt.Sprintf("📋 New Bill: %s\n", bill.Payee))
-		b.WriteString(fmt.Sprintf("📅 Date: %s\n", bill.Date))
-		b.WriteString(fmt.Sprintf("💰 Total: $%.2f\n", bill.Total))
-		b.WriteString(fmt.Sprintf("👤 Each roommate owes %s: $%.2f\n", bill.Roomie, bill.Split))
+		fmt.Fprintf(&b, "#️⃣ Bill ID: %d\n", bill.Id) // first space is an emoji
+		fmt.Fprintf(&b, "📋 New Bill: %s\n", bill.Payee)
+		fmt.Fprintf(&b, "📅 Date: %s\n", bill.Date)
+		fmt.Fprintf(&b, "💰 Total: $%.2f\n", bill.Total)
+		fmt.Fprintf(&b, "👤 Each roommate owes %s: $%.2f\n", bill.Roomie, bill.Split)
 		b.WriteString("\n")
 	}
 
@@ -70,32 +69,31 @@ func (c *Client) SendOutstandingBills(outstandingBills []db.OutstandingBill) err
 	b.WriteString("Outstanding Bills:\n\n")
 
 	for _, bill := range outstandingBills {
-		// TODO: fix help messages
-		b.WriteString(fmt.Sprintf("#️⃣ Bill ID: %d\n", bill.Id)) // first space is an emoji
-		b.WriteString(fmt.Sprintf("📋 Bill Name: %s\n", bill.Name))
-		b.WriteString(fmt.Sprintf("💰 Total: $%.2f\n", bill.Amount))
+		fmt.Fprintf(&b, "#️⃣ Bill ID: %d\n", bill.Id) // first space is an emoji
+		fmt.Fprintf(&b, "📋 Bill Name: %s\n", bill.Name)
+		fmt.Fprintf(&b, "💰 Total: $%.2f\n", bill.Amount)
 		b.WriteString("😠 ")
 
 		for i, payer := range bill.Payers {
 			if len(bill.Payers) == 1 {
-				b.WriteString(fmt.Sprintf("%s ", payer))
+				fmt.Fprintf(&b, "%s ", payer)
 			} else {
 				if i == len(bill.Payers)-1 {
-					b.WriteString(fmt.Sprintf("and %s ", payer))
+					fmt.Fprintf(&b, "and %s ", payer)
 				} else {
 					if len(bill.Payers) == 2 {
-						b.WriteString(fmt.Sprintf("%s ", payer))
+						fmt.Fprintf(&b, "%s ", payer)
 					} else {
-						b.WriteString(fmt.Sprintf("%s, ", payer))
+						fmt.Fprintf(&b, "%s, ", payer)
 					}
 				}
 			}
 		}
 
 		if len(bill.Payers) == 1 {
-			b.WriteString(fmt.Sprintf("still owes %s money!\n", bill.Payee))
+			fmt.Fprintf(&b, "still owes %s money!\n", bill.Payee)
 		} else {
-			b.WriteString(fmt.Sprintf("still owe %s money!\n", bill.Payee))
+			fmt.Fprintf(&b, "still owe %s money!\n", bill.Payee)
 		}
 		b.WriteString("\n")
 	}

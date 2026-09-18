@@ -25,12 +25,11 @@ func (db *DB) FindNewPlaidBills(bills []plaid.Bill) ([]plaid.Bill, error) {
 	var b strings.Builder
 	b.WriteString("SELECT plaid_id FROM bills WHERE plaid_id IN (")
 
-	// TODO: fix hints later
 	for i, bill := range bills {
 		if i == len(bills)-1 {
-			b.WriteString(fmt.Sprintf("\"%s\");", bill.Id))
+			fmt.Fprintf(&b, "\"%s\");", bill.Id)
 		} else {
-			b.WriteString(fmt.Sprintf("\"%s\", ", bill.Id))
+			fmt.Fprintf(&b, "\"%s\", ", bill.Id)
 		}
 	}
 
