@@ -206,19 +206,22 @@ func (c Client) getBills(ctx context.Context, accessToken string, billChan chan<
 
 	for _, transaction := range res.GetTransactions() {
 		payee := transaction.GetName()
+		total := transaction.GetAmount()
 
-		if strings.Contains(payee, "Lasvegasvalleywater") ||
-			strings.Contains(payee, "Cox Comm") ||
-			strings.Contains(payee, "Southwest Gas") ||
-			strings.Contains(payee, "Lighthouse") || // TODO: find actual name
-			strings.Contains(payee, "NV Energy") { // TODO: find actual name
+		// if the transaction is one of our bill names and the amount is over $0
+		if (strings.Contains(strings.ToLower(payee), "lasvegasvalleywater") ||
+			strings.Contains(strings.ToLower(payee), "cox comm") ||
+			strings.Contains(strings.ToLower(payee), "southwest gas") ||
+			strings.Contains(strings.ToLower(payee), "lighthouse homes") ||
+			strings.Contains(strings.ToLower(payee), "nv energy")) &&
+			total > 0 {
 
 			billChan <- Bill{
 				Id:        transaction.GetTransactionId(),
 				AccountId: transaction.GetAccountId(),
 				Payee:     payee,
 				Date:      transaction.GetDate(),
-				Total:     transaction.GetAmount(),
+				Total:     total,
 			}
 		}
 	}
