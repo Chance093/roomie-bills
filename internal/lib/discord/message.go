@@ -28,7 +28,6 @@ type SplitBill struct {
 	Split float64
 }
 
-// TODO: combine this with send no bills message
 func (c *Client) SendBills(bills []types.SplitBill) error {
 	var b strings.Builder
 	b.WriteString("```")

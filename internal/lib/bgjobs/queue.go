@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/Chance093/roomie-bills/internal/lib/redis"
 )
 
 type queue struct {
@@ -19,41 +19,16 @@ func newQueue(name string, rdb *redis.Client) queue {
 }
 
 func (q queue) enqueue(ctx context.Context, t []byte) error {
-	if _, err := q.rdb.LPush(ctx, q.name, t).Result(); err != nil {
-		return err
-	}
-
-	return nil
+	return q.rdb.ListPush(ctx, q.name, t)
 }
 
 func (q queue) popAndMoveTo(ctx context.Context, dst queue) (string, error) {
-	v, err := q.rdb.BLMove(ctx, q.name, dst.name, "RIGHT", "LEFT", time.Duration(0)).Result()
-	if err != nil {
-		return "", err
-	}
-
-	return v, nil
+	return q.rdb.BlockingListMove(ctx, q.name, dst.name, "RIGHT", "LEFT", time.Duration(0))
 }
 
 func (q queue) remove(ctx context.Context, v any) error {
-	if _, err := q.rdb.LRem(ctx, q.name, 0, v).Result(); err != nil {
-		return err
-	}
-
-	return nil
+	return q.rdb.ListRemove(ctx, q.name, 0, v)
 }
-
-/* Replaced by popAndMoveTo
-
-func (q queue) dequeue(ctx context.Context) (string, error) {
-raw, err := q.rdb.BRPop(ctx, time.Duration(0), q.name).Result()
-if err != nil {
-return "", err
-}
-
-return raw[0], nil
-}
-*/
 
 func newPrimaryQueue(rdb *redis.Client) queue {
 	return newQueue(Primary, rdb)

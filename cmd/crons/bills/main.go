@@ -10,8 +10,7 @@ import (
 // run as a cron job every saturday
 func main() {
 	// starts task pipeline for getting outstanding bills and then new bills
-	redisOpts := bgjobs.RedisOpts{}
-	jc := bgjobs.NewClient(redisOpts)
+	jc := bgjobs.NewClient(nil)
 	defer jc.Close()
 
 	newTask, err := tasks.NewGetOutstandingBillsTask()

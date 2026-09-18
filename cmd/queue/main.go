@@ -24,15 +24,14 @@ func main() {
 		log.Fatalf("Could not connect to discord client: %s\n", err.Error())
 	}
 
-	redisOpts := bgjobs.RedisOpts{}
-	jc := bgjobs.NewClient(redisOpts)
+	jc := bgjobs.NewClient(nil)
 	defer jc.Close()
 
 	db := db.NewDB()
 	defer db.Close()
 
 	// config server and handlers
-	srv := bgjobs.NewServer(redisOpts, bgjobs.ServerConfig{})
+	srv := bgjobs.NewServer(bgjobs.ServerConfig{}, nil)
 	mux := bgjobs.NewServeMux()
 	handler := tasks.NewHandler(pc, jc, dc, db)
 

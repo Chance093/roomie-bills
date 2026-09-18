@@ -7,6 +7,8 @@ import (
 	"math"
 	"sync"
 	"time"
+
+	"github.com/Chance093/roomie-bills/internal/lib/redis"
 )
 
 type Server struct {
@@ -22,8 +24,8 @@ type ServerConfig struct {
 }
 
 // set options to server
-func NewServer(opts RedisOpts, cfg ServerConfig) Server {
-	rdb := initNewRDBClient(opts)
+func NewServer(cfg ServerConfig, opts *redis.Opts) Server {
+	rdb := redis.NewClient(opts)
 	pq := newPrimaryQueue(rdb)
 	tq := newTempQueue(rdb)
 	dlq := newDLQ(rdb)

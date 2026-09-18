@@ -4,14 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
+	"github.com/Chance093/roomie-bills/internal/lib/redis"
 )
 
 type Client struct {
 	primeQ queue
 }
 
-func NewClient(opts RedisOpts) Client {
-	rdb := initNewRDBClient(opts)
+func NewClient(opts *redis.Opts) Client {
+	rdb := redis.NewClient(opts)
 	pq := newPrimaryQueue(rdb)
 
 	c := Client{pq}

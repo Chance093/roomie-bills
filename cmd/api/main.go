@@ -22,7 +22,7 @@ func main() {
 		log.Fatalf("Could not get env variables: %s\n", err.Error())
 	}
 	pc := plaid.NewClient(env)
-	jc := bgjobs.NewClient(bgjobs.RedisOpts{})
+	jc := bgjobs.NewClient(nil)
 	defer jc.Close()
 	db := db.NewDB()
 	defer db.Close()
