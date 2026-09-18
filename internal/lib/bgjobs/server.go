@@ -58,7 +58,6 @@ func (s *Server) Run(mux *ServeMux) {
 	wg.Wait()
 }
 
-// TODO: error logging
 func (s *Server) worker(mux *ServeMux) {
 OUTER:
 	for {

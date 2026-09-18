@@ -19,9 +19,11 @@
 - [ ] Add good logging
 - [ ] Refactor every package
 - [ ] Write tests
+- [ ] Write documentation
+- [ ] Final code review
 - [ ] Deploy manually without helpers
 - [ ] Rewrite deployment to use CI/CD
-- [ ] Final Review
+- [ ] Final CI/CD Review
 - [ ] Rewrite this README
 
 ### Message Format

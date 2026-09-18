@@ -40,8 +40,14 @@ func (s Server) billPaidHandler(w http.ResponseWriter, r *http.Request) {
 
 	// slash command interaction
 	if interaction.Type == discord.InteractionApplicationCommand {
-		// TODO: Make sure interaction name is "paid"
-		info, err := s.dc.GetRoomieAndBill(interaction)
+		// validate command name
+		data := interaction.ApplicationCommandData()
+		if data.Name != "paid" {
+			writeError(w, http.StatusBadRequest, fmt.Errorf("Unexpected interaction command: %s", data.Name))
+		}
+
+		// get roomie name and bill id they paid
+		info, err := s.dc.GetRoomieAndBill(interaction, data)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err)
 			return
@@ -81,5 +87,4 @@ func (s Server) billPaidHandler(w http.ResponseWriter, r *http.Request) {
 
 	// send error for unknown interaction
 	writeError(w, http.StatusBadRequest, errors.New("Unknown interaction type"))
-	return
 }

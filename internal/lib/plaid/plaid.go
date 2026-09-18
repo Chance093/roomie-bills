@@ -10,8 +10,6 @@ import (
 	"github.com/plaid/plaid-go/v43/plaid"
 )
 
-// TODO: create documentation for this package
-
 type Client struct {
 	client *plaid.APIClient
 	env    map[string]string

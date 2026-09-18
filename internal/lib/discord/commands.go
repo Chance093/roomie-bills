@@ -89,17 +89,7 @@ func (c Client) DecodeInteraction(body io.ReadCloser) (Interaction, error) {
 	return payload, nil
 }
 
-func (c Client) GetRoomieAndBill(i Interaction) (InteractionInfo, error) {
-	// validate
-	if i.Type != discordgo.InteractionApplicationCommand {
-		return InteractionInfo{}, fmt.Errorf("Unexpected interaction type: %s", i.Type)
-	}
-
-	data := i.ApplicationCommandData()
-	if data.Name != "paid" {
-		return InteractionInfo{}, fmt.Errorf("Unexpected interaction name: %s", data.Name)
-	}
-
+func (c Client) GetRoomieAndBill(i Interaction, data discordgo.ApplicationCommandInteractionData) (InteractionInfo, error) {
 	// Get roomie name from discord name
 	discordUser := i.Member.User.Username
 	roomie, ok := DiscordToRoomieMap[discordUser]

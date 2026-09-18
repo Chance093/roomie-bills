@@ -9,7 +9,7 @@ import (
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 )
 
-// TODO: find better naming convention for these
+// TODO: (REVIEW) find better naming convention for these
 const (
 	TypeGetAccessToken       = "get:accessToken"
 	TypeGetBank              = "get:bank"
