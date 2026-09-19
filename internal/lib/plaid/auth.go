@@ -8,6 +8,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -97,13 +98,18 @@ func (c Client) VerifyWebhook(ctx context.Context, body []byte, ip string, heade
 	return nil
 }
 
-// TODO: convert this to redis
-var jwkCache = map[string]*plaid.JWKPublicKey{}
-
 func (c *Client) getJWK(ctx context.Context, kid string) (*plaid.JWKPublicKey, error) {
-	if key, ok := jwkCache[kid]; ok && key != nil {
-		return key, nil
+	// TODO: (REVIEW) Check if storing a []byte effects getting out a string when doing json conversion
+	// check if jwk is in redis cache
+	if val, err := c.cache.KVGet(ctx, kid); err == nil {
+		var jwk plaid.JWKPublicKey
+		if err = json.Unmarshal([]byte(val), &jwk); err != nil {
+			return nil, fmt.Errorf("Could not unmarshal jwk from cache: %w", err)
+		}
+
+		return &jwk, nil
 	}
+
 	req := plaid.NewWebhookVerificationKeyGetRequest(kid)
 	resp, _, err := c.client.PlaidApi.WebhookVerificationKeyGet(ctx).
 		WebhookVerificationKeyGetRequest(*req).
@@ -111,10 +117,15 @@ func (c *Client) getJWK(ctx context.Context, kid string) (*plaid.JWKPublicKey, e
 	if err != nil {
 		return nil, err
 	}
+
 	key := resp.GetKey()
 	if key.Kid == kid {
-		jwkCache[kid] = &key
+		// store in cache
+		if b, err := json.Marshal(key); err == nil {
+			c.cache.KVSet(ctx, kid, b, time.Minute * 5)
+		}
 	}
+
 	return &key, nil
 }
 

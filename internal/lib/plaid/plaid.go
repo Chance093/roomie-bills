@@ -7,12 +7,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Chance093/roomie-bills/internal/lib/redis"
 	"github.com/plaid/plaid-go/v43/plaid"
 )
 
 type Client struct {
 	client *plaid.APIClient
 	env    map[string]string
+	cache  *redis.Client
 }
 
 func NewClient(env map[string]string) Client {
@@ -21,8 +23,9 @@ func NewClient(env map[string]string) Client {
 	configuration.AddDefaultHeader("PLAID-SECRET", env["PLAID_SECRET"])
 	configuration.UseEnvironment(plaid.Production)
 	client := plaid.NewAPIClient(configuration)
+	cache := redis.NewClient(nil)
 
-	return Client{client, env}
+	return Client{client, env, cache}
 }
 
 type HostedLink struct {
