@@ -15,6 +15,7 @@ type Task struct {
 	CompletedAtMs int64  `redis:"completed_at_ms"`
 	ClaimToken    string `redis:"claim_token"`
 	LastError     string `redis:"last_error"`
+	LastErrorAtMs int64  `redis:"last_error_at_ms"`
 }
 
 func NewTask(name string, payload []byte) *Task {

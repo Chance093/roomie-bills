@@ -141,8 +141,8 @@ func (q *taskQueue) Complete(ctx context.Context, task *ClaimedTask) (bool, erro
 	t.Status = "completed"
 	t.CompletedAtMs = nowMs()
 
-	// remove task id from processing task queue, update task hash, set expiration 
-	// for task hash, push task id to completed task queue, and trim the completed 
+	// remove task id from processing task queue, update task hash, set expiration
+	// for task hash, push task id to completed task queue, and trim the completed
 	// task queue, and execute these commands all at once
 	pipe := q.redis.Pipeline()
 	pipe.LRem(ctx, q.processingKey, 1, taskId)
@@ -151,7 +151,58 @@ func (q *taskQueue) Complete(ctx context.Context, task *ClaimedTask) (bool, erro
 	pipe.LPush(ctx, q.completedKey, taskId)
 	pipe.LTrim(ctx, q.completedKey, 0, int64(q.completedHistory)-1)
 	if _, err := pipe.Exec(ctx); err != nil {
-		return false, fmt.Errorf("Error while performing pipeline redis calls for completed task: %w", err)
+		return false, fmt.Errorf("Error while performing pipeline redis calls for completed task (%s): %w", taskId, err)
+	}
+
+	return true, nil
+}
+
+func (q *taskQueue) Fail(ctx context.Context, task *ClaimedTask, errMsg error) (bool, error) {
+	// compare claim token in claimed task with claim token in redis
+	taskId := task.Id
+	taskKey := q.taskKey(taskId)
+	currentToken, err := q.redis.HGet(ctx, taskKey, "claim_token").Result()
+	if err != nil {
+		return false, fmt.Errorf("Error while getting claim token from task (%s) hash: %w", taskId, err)
+	}
+	if currentToken != task.ClaimToken {
+		return false, nil // TODO: error handling (don't know if it should be error)
+	}
+
+	// get task hash from redis
+	var t Task
+	if err := q.redis.HGetAll(ctx, taskKey).Scan(&t); err != nil {
+		return false, fmt.Errorf("Error while getting task (%s) hash from redis: %w", taskId, err)
+	}
+
+	// remove task id from processing queue, update task hash properties based on
+	// whether or not the task should retry, and if the task should retry, it should
+	// push the task id to the pending queue, else it should push to the failed queue,
+	// trim the failed queue, and set expiration on task hash
+	pipe := q.redis.Pipeline()
+	pipe.LRem(ctx, q.processingKey, 1, taskId)
+
+	retry := task.Attempts < q.maxAttempts
+	if retry {
+		t.Status = "pending"
+		t.LastError = errMsg.Error()
+		t.LastErrorAtMs = nowMs()
+		t.ClaimToken = ""
+		t.ClaimedAtMs = 0
+		pipe.LPush(ctx, q.pendingKey, taskId)
+	} else {
+		t.Status = "failed"
+		t.LastError = errMsg.Error()
+		t.LastErrorAtMs = nowMs()
+		t.ClaimToken = ""
+		pipe.LPush(ctx, q.failedKey, taskId)
+		pipe.LTrim(ctx, q.failedKey, 0, int64(q.completedHistory)-1)
+		pipe.Expire(ctx, taskKey, time.Duration(q.completedTTL))
+	}
+
+	pipe.HSet(ctx, taskKey, t)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return false, fmt.Errorf("Error while performing pipeline redis calls for failed task (%s): %w", taskId, err)
 	}
 
 	return true, nil
