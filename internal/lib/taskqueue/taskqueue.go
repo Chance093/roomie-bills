@@ -3,6 +3,7 @@ package taskqueue
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,6 +20,12 @@ type taskQueue struct {
 	completedKey  string
 	failedKey     string
 	taskPrefix    string
+
+	statsMu    sync.Mutex
+	enqueuedN  int
+	completedN int
+	failedN    int
+	reclaimedN int
 }
 
 type Options struct {
@@ -83,6 +90,10 @@ func (q *taskQueue) Enqueue(ctx context.Context, t Task) (string, error) {
 	if _, err := pipe.Exec(ctx); err != nil {
 		return "", fmt.Errorf("Error while enqueueing task in redis: %w", err)
 	}
+
+	q.statsMu.Lock()
+	q.enqueuedN++
+	q.statsMu.Unlock()
 
 	return taskId, nil
 }
@@ -159,6 +170,10 @@ func (q *taskQueue) Complete(ctx context.Context, task *ClaimedTask) (bool, erro
 		return false, fmt.Errorf("Error while performing pipeline redis calls for completed task (%s): %w", taskId, err)
 	}
 
+	q.statsMu.Lock()
+	q.completedN++
+	q.statsMu.Unlock()
+
 	return true, nil
 }
 
@@ -210,6 +225,10 @@ func (q *taskQueue) Fail(ctx context.Context, task *ClaimedTask, errMsg error) (
 		return false, fmt.Errorf("Error while performing pipeline redis calls for failed task (%s): %w", taskId, err)
 	}
 
+	q.statsMu.Lock()
+	q.failedN++
+	q.statsMu.Unlock()
+
 	return true, nil
 }
 
@@ -253,13 +272,54 @@ func (q *taskQueue) ReclaimStuck(ctx context.Context) ([]string, error) {
 			reclaimed = append(reclaimed, taskId)
 		}
 	}
+
+	q.statsMu.Lock()
+	q.reclaimedN += len(reclaimed)
+	q.statsMu.Unlock()
+
 	return reclaimed, nil
+}
+
+type QueueStats struct {
+	EnqueuedTotal   int
+	CompletedTotal  int
+	FailedTotal     int
+	ReclaimedTotal  int
+	PendingDepth    int64
+	ProcessingDepth int64
+	CompletedDepth  int64
+	FailedDepth     int64
+}
+
+func (q *taskQueue) Stats(ctx context.Context) (QueueStats, error) {
+	pipe := q.redis.Pipeline()
+	pendingCmd := pipe.LLen(ctx, q.pendingKey)
+	processingCmd := pipe.LLen(ctx, q.processingKey)
+	completedCmd := pipe.LLen(ctx, q.completedKey)
+	failedCmd := pipe.LLen(ctx, q.failedKey)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return QueueStats{}, fmt.Errorf("Error while performing pipeline redis calls for stats: %w", err)
+	}
+
+	q.statsMu.Lock()
+	defer q.statsMu.Unlock()
+
+	return QueueStats{
+		EnqueuedTotal:   q.enqueuedN,
+		CompletedTotal:  q.completedN,
+		FailedTotal:     q.failedN,
+		ReclaimedTotal:  q.reclaimedN,
+		PendingDepth:    pendingCmd.Val(),
+		ProcessingDepth: processingCmd.Val(),
+		CompletedDepth:  completedCmd.Val(),
+		FailedDepth:     failedCmd.Val(),
+	}, nil
 }
 
 func nowMs() int64 {
 	return time.Now().UnixNano() / int64(time.Millisecond)
 }
 
-func (q taskQueue) taskKey(taskId string) string {
+func (q *taskQueue) taskKey(taskId string) string {
 	return q.taskPrefix + taskId
 }
