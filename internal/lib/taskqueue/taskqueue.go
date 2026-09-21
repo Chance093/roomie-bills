@@ -26,6 +26,7 @@ type Options struct {
 	maxAttempts      int
 	completedTTL     int
 	completedHistory int
+	reclaimMs        int
 }
 
 func newTaskQueue(opts Options) *taskQueue {
@@ -41,6 +42,9 @@ func newTaskQueue(opts Options) *taskQueue {
 	if opts.completedHistory <= 0 {
 		opts.completedHistory = 50
 	}
+	if opts.reclaimMs <= 0 {
+		opts.reclaimMs = 10000 // 10 seconds
+	}
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     "127.0.0.1:6379",
@@ -55,6 +59,7 @@ func newTaskQueue(opts Options) *taskQueue {
 			maxAttempts:      opts.maxAttempts,
 			completedTTL:     opts.completedTTL,
 			completedHistory: opts.completedHistory,
+			reclaimMs:        opts.reclaimMs,
 		},
 
 		pendingKey:    fmt.Sprintf("queue:%s:pending", opts.queueName),
@@ -206,6 +211,49 @@ func (q *taskQueue) Fail(ctx context.Context, task *ClaimedTask, errMsg error) (
 	}
 
 	return true, nil
+}
+
+// go through processing list and find stuck jobs
+// if stuck, put back in pending
+func (q *taskQueue) ReclaimStuck(ctx context.Context) ([]string, error) {
+	processing, err := q.redis.LRange(ctx, q.processingKey, 0, -1).Result()
+	if err != nil {
+		return nil, fmt.Errorf("Error while getting all tasks in processing queue: %w", err)
+	}
+	var reclaimed []string
+
+	for _, taskId := range processing {
+		// get task hash from redis
+		taskKey := q.taskKey(taskId)
+		var t Task
+		if err := q.redis.HGetAll(ctx, taskKey).Scan(&t); err != nil {
+			return nil, fmt.Errorf("Error while getting task (%s) hash from redis: %w", taskId, err)
+		}
+
+		// A job is past the timeout if either:
+		//   - claimed_at_ms is set and (now - claimed_at_ms) > reclaimMs, OR
+		//   - claimed_at_ms is missing (worker crashed between BLMOVE and the
+		//     metadata write) and (now - enqueued_at_ms) > 2 * reclaimMs.
+		now := nowMs()
+		if (t.ClaimedAtMs > 0 && (now-t.ClaimedAtMs) > int64(q.reclaimMs)) ||
+			(t.ClaimedAtMs == 0 && (now-t.EnqueuedAtMs) > 2*int64(q.reclaimMs)) {
+			t.Status = "pending"
+			t.ReclaimedAtMs = now
+			t.ClaimedAtMs = 0
+			t.ClaimToken = ""
+
+			pipe := q.redis.Pipeline()
+			pipe.LRem(ctx, q.processingKey, 1, taskId)
+			pipe.LPush(ctx, q.pendingKey, taskId)
+			pipe.HSet(ctx, taskKey, t)
+			if _, err := pipe.Exec(ctx); err != nil {
+				return nil, fmt.Errorf("Error while performing pipeline redis calls for stuck task (%s): %w", taskId, err)
+			}
+
+			reclaimed = append(reclaimed, taskId)
+		}
+	}
+	return reclaimed, nil
 }
 
 func nowMs() int64 {
