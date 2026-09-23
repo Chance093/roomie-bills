@@ -105,9 +105,12 @@ type ClaimedTask struct {
 	ClaimToken string
 }
 
-func (q *taskQueue) Claim(ctx context.Context) (*ClaimedTask, error) {
+func (q *taskQueue) Claim(ctx context.Context, timeoutMs int) (*ClaimedTask, error) {
+	// set timeout for blocking move
+	timeout := max(time.Duration(timeoutMs)*time.Millisecond, 100*time.Millisecond)
+
 	// move task id from pending task queue to processing task queue
-	taskId, err := q.redis.BLMove(ctx, q.pendingKey, q.processingKey, "RIGHT", "LEFT", time.Duration(0)).Result()
+	taskId, err := q.redis.BLMove(ctx, q.pendingKey, q.processingKey, "RIGHT", "LEFT", timeout).Result()
 	if err == redis.Nil {
 		return nil, nil
 	}

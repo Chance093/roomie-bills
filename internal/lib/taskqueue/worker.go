@@ -9,6 +9,7 @@ import (
 )
 
 type worker struct {
+	name  string
 	queue *taskQueue
 
 	processN atomic.Int32
@@ -18,8 +19,8 @@ type worker struct {
 	cancel context.CancelFunc
 }
 
-func NewWorker(queue *taskQueue) *worker {
-	return &worker{queue: queue}
+func NewWorker(name string, queue *taskQueue) *worker {
+	return &worker{name: name, queue: queue}
 }
 
 // Create done channel and cancel context
@@ -42,14 +43,14 @@ func (w *worker) Start(ctx context.Context) {
 	done := make(chan struct{})
 	w.done = done
 
-	w.Run(ctx, done)
+	go w.Run(ctx, done)
 }
 
 func (w *worker) Stop() {
 	w.runMu.Lock()
-	defer w.runMu.Unlock()
-
 	cancel := w.cancel
+	w.runMu.Unlock()
+
 	if cancel != nil {
 		cancel()
 	}
@@ -80,10 +81,10 @@ func (w *worker) Run(ctx context.Context, done chan struct{}) {
 		select {
 		case <-ctx.Done(): // Stop() was called, so return
 			return
-		default:
+		default: // do nothing
 		}
 
-		task, err := w.queue.Claim(ctx)
+		task, err := w.queue.Claim(ctx, 500)
 		if err != nil {
 			select {
 			case <-ctx.Done(): // Stop() was called, so return
@@ -96,7 +97,7 @@ func (w *worker) Run(ctx context.Context, done chan struct{}) {
 		}
 
 		if task == nil {
-			continue // no need for sleep, queue handles this
+			continue // no need for sleep, Claim() handles timeout
 		}
 
 		w.Process(ctx, task)
