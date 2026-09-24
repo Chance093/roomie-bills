@@ -30,7 +30,7 @@ func NewTask(name string, payload []byte, opts *TaskOption) *Task {
 	}
 
 	if opts.TimeoutMs <= 0 {
-		opts.TimeoutMs = 5000 // 5 seconds
+		opts.TimeoutMs = 5000 // 5 seconds (default)
 	}
 
 	t := &Task{
