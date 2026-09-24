@@ -102,6 +102,7 @@ type ClaimedTask struct {
 	Id         string
 	Name       string
 	Payload    string
+	TimeoutMs  int
 	Attempts   int
 	ClaimToken string
 }
@@ -136,7 +137,7 @@ func (q *taskQueue) Claim(ctx context.Context, timeoutMs int) (*ClaimedTask, err
 		return nil, fmt.Errorf("Error while updating task (%s) hash in redis: %w", taskId, err)
 	}
 
-	return &ClaimedTask{taskId, t.Name, t.Payload, t.Attempts, t.ClaimToken}, nil
+	return &ClaimedTask{taskId, t.Name, t.Payload, t.TimeoutMs, t.Attempts, t.ClaimToken}, nil
 }
 
 func (q *taskQueue) Complete(ctx context.Context, task *ClaimedTask) (bool, error) {

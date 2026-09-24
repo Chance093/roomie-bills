@@ -13,6 +13,8 @@ type worker struct {
 	queue *taskQueue
 	mux   ServeMux
 
+	workerOpts
+
 	processed atomic.Int64
 
 	runMu  sync.Mutex
@@ -20,8 +22,20 @@ type worker struct {
 	cancel context.CancelFunc
 }
 
-func NewWorker(name string, queue *taskQueue, mux ServeMux) *worker {
-	return &worker{name: name, queue: queue, mux: mux}
+type workerOpts struct {
+	claimTimeoutMs int
+}
+
+func NewWorker(name string, queue *taskQueue, mux ServeMux, opts *workerOpts) *worker {
+	if opts == nil {
+		opts = &workerOpts{}
+	}
+
+	if opts.claimTimeoutMs <= 0 {
+		opts.claimTimeoutMs = 500
+	}
+
+	return &worker{name: name, queue: queue, mux: mux, workerOpts: *opts}
 }
 
 // Create done channel and cancel context
@@ -44,7 +58,7 @@ func (w *worker) Start(ctx context.Context) {
 	done := make(chan struct{})
 	w.done = done
 
-	go w.Run(ctx, done)
+	go w.run(ctx, done)
 }
 
 func (w *worker) Stop() {
@@ -83,7 +97,7 @@ func (w *worker) ResetProcessed() {
 }
 
 // constantly tries to pull task off of queue
-func (w *worker) Run(ctx context.Context, done chan struct{}) {
+func (w *worker) run(ctx context.Context, done chan struct{}) {
 	defer close(done) // when done running, close done channel for IsAlive method
 
 	for {
@@ -93,7 +107,7 @@ func (w *worker) Run(ctx context.Context, done chan struct{}) {
 		default: // do nothing
 		}
 
-		task, err := w.queue.Claim(ctx, 500)
+		task, err := w.queue.Claim(ctx, w.claimTimeoutMs)
 		if err != nil {
 			select {
 			case <-ctx.Done(): // Stop() was called, so return
@@ -109,12 +123,12 @@ func (w *worker) Run(ctx context.Context, done chan struct{}) {
 			continue // no need for sleep, Claim() handles timeout
 		}
 
-		w.Process(ctx, task)
+		w.process(ctx, task)
 	}
 }
 
 // processes job
-func (w *worker) Process(parentCtx context.Context, task *ClaimedTask) {
+func (w *worker) process(parentCtx context.Context, task *ClaimedTask) {
 	// look up task handler in mux
 	h, err := w.mux.getHandler(task.Name)
 	if err != nil {
@@ -125,7 +139,9 @@ func (w *worker) Process(parentCtx context.Context, task *ClaimedTask) {
 	}
 
 	// execute task handler
-	ctx, cancel := context.WithTimeout(parentCtx, 3*time.Second)
+	// TODO: (REVIEW) Is this the right way to use timeout or should I just pass ctx with no channels
+	timeout := time.Duration(task.TimeoutMs) * time.Millisecond
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
 	defer cancel()
 	errChan := make(chan error)
 	doneChan := make(chan struct{})

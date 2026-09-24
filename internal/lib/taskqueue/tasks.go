@@ -8,6 +8,7 @@ type Task struct {
 	Id            string `redis:"id"`
 	Name          string `redis:"name"`
 	Payload       string `redis:"payload"`
+	TimeoutMs     int    `redis:"timeout_ms"`
 	Status        string `redis:"status"`
 	Attempts      int    `redis:"attempts"`
 	EnqueuedAtMs  int64  `redis:"enqueued_at_ms"`
@@ -19,11 +20,24 @@ type Task struct {
 	LastErrorAtMs int64  `redis:"last_error_at_ms"`
 }
 
-func NewTask(name string, payload []byte) *Task {
+type TaskOption struct {
+	TimeoutMs int
+}
+
+func NewTask(name string, payload []byte, opts *TaskOption) *Task {
+	if opts == nil {
+		opts = &TaskOption{}
+	}
+
+	if opts.TimeoutMs <= 0 {
+		opts.TimeoutMs = 5000 // 5 seconds
+	}
+
 	t := &Task{
-		Id:      uuid.New().String(),
-		Name:    name,
-		Payload: string(payload),
+		Id:        uuid.New().String(),
+		Name:      name,
+		Payload:   string(payload),
+		TimeoutMs: opts.TimeoutMs,
 	}
 
 	return t
