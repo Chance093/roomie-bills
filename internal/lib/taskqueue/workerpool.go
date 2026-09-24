@@ -22,14 +22,13 @@ type workerPoolOpts struct {
 	claimTimeoutMs int
 }
 
-func NewWorkerPool(ctx context.Context, count int, queue *taskQueue, mux ServeMux, opts *workerPoolOpts) *WorkerPool {
+func NewWorkerPool(ctx context.Context, count int, queue *taskQueue, opts *workerPoolOpts) *WorkerPool {
 	if opts == nil {
 		opts = &workerPoolOpts{}
 	}
 
 	pool := &WorkerPool{
 		queue:          queue,
-		mux:            mux,
 		parentCtx:      ctx,
 		workerPoolOpts: *opts,
 	}
@@ -55,10 +54,11 @@ func (p *WorkerPool) Resize(size int) {
 	}
 }
 
-func (p *WorkerPool) Start(ctx context.Context) {
+func (p *WorkerPool) Start(ctx context.Context, mux ServeMux) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	p.mux = mux
 	for _, worker := range p.workers {
 		worker.Start(ctx)
 	}

@@ -13,7 +13,7 @@ import (
 type taskQueue struct {
 	redis *redis.Client
 
-	Options
+	TaskQueueOptions
 
 	pendingKey    string
 	processingKey string
@@ -28,7 +28,7 @@ type taskQueue struct {
 	reclaimedN int
 }
 
-type Options struct {
+type TaskQueueOptions struct {
 	queueName        string
 	maxAttempts      int
 	completedTTL     int
@@ -36,7 +36,7 @@ type Options struct {
 	reclaimMs        int
 }
 
-func newTaskQueue(opts Options) *taskQueue {
+func newTaskQueue(opts TaskQueueOptions) *taskQueue {
 	if opts.queueName == "" {
 		opts.queueName = "tasks"
 	}
@@ -61,7 +61,7 @@ func newTaskQueue(opts Options) *taskQueue {
 	return &taskQueue{
 		redis: rdb,
 
-		Options: Options{
+		TaskQueueOptions: TaskQueueOptions{
 			queueName:        opts.queueName,
 			maxAttempts:      opts.maxAttempts,
 			completedTTL:     opts.completedTTL,

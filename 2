@@ -1,0 +1,11 @@
+package taskqueue
+
+type Server struct{}
+
+type ServerOpts struct {
+	Concurrency int
+}
+
+func NewServer(opts ServerOpts) Server {
+	return Server{}
+}
