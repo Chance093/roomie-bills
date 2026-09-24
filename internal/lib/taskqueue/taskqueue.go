@@ -149,8 +149,8 @@ func (q *taskQueue) Complete(ctx context.Context, task *ClaimedTask) (bool, erro
 		return false, fmt.Errorf("Error while getting claim token from task (%s) hash: %w", taskId, err)
 	}
 
-	if currentToken != task.ClaimToken {
-		return false, nil // TODO: error handling (don't know if it should be error)
+	if currentToken != task.ClaimToken { // this job was reclaimed and og claimer is trying to complete
+		return false, fmt.Errorf("Task was reclaimed and OG claimer tried to complete task. OG claim token: %s - Current claim token: %s", task.ClaimToken, currentToken)
 	}
 
 	// get task hash from redis and update task properties
@@ -190,8 +190,8 @@ func (q *taskQueue) Fail(ctx context.Context, task *ClaimedTask, errMsg error) (
 	if err != nil {
 		return false, fmt.Errorf("Error while getting claim token from task (%s) hash: %w", taskId, err)
 	}
-	if currentToken != task.ClaimToken {
-		return false, nil // TODO: error handling (don't know if it should be error)
+	if currentToken != task.ClaimToken { // this job was reclaimed and og claimer is trying to fail
+		return false, fmt.Errorf("Task was reclaimed and OG claimer tried to fail task. OG claim token: %s - Current claim token: %s", task.ClaimToken, currentToken)
 	}
 
 	// get task hash from redis
