@@ -11,6 +11,7 @@ import (
 type worker struct {
 	name  string
 	queue *taskQueue
+	mux   ServeMux
 
 	processN atomic.Int32
 
@@ -19,8 +20,8 @@ type worker struct {
 	cancel context.CancelFunc
 }
 
-func NewWorker(name string, queue *taskQueue) *worker {
-	return &worker{name: name, queue: queue}
+func NewWorker(name string, queue *taskQueue, mux ServeMux) *worker {
+	return &worker{name: name, queue: queue, mux: mux}
 }
 
 // Create done channel and cancel context
@@ -105,6 +106,47 @@ func (w *worker) Run(ctx context.Context, done chan struct{}) {
 }
 
 // processes job
+// TODO: differentiate parent and child context
 func (w *worker) Process(ctx context.Context, task *ClaimedTask) {
 	// look up task handler in mux
+	h, err := w.mux.getHandler(task.Name)
+	if err != nil {
+		if _, err := w.queue.Fail(ctx, task, err); err != nil {
+			fmt.Printf("Error while trying to fail task: %s", err.Error())
+		}
+		return
+	}
+
+	// execute task handler
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	errChan := make(chan error)
+	doneChan := make(chan struct{})
+	go func() {
+		h(ctx, task, errChan, doneChan)
+	}()
+
+	// block until we get result of handler
+	select {
+	case <-ctx.Done(): // timed out
+		err = fmt.Errorf("Timed out while running task handler for task: %s", task.Id)
+	case e := <-errChan: // error
+		err = e
+	case <-doneChan: // success
+	}
+
+	// if error, fail task
+	if err != nil {
+		if _, err := w.queue.Fail(ctx, task, err); err != nil {
+			fmt.Printf("Error while trying to fail task: %s", err.Error())
+		}
+		return
+	}
+
+	// complete task
+	if ok, err := w.queue.Complete(ctx, task); err == nil && ok {
+		w.processN.Add(1)
+	} else {
+		fmt.Printf("Error while trying to complete task: %s", err.Error())
+	}
 }
