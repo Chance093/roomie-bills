@@ -84,7 +84,7 @@ func (q *taskQueue) Enqueue(ctx context.Context, t Task) (string, error) {
 	t.Status = "pending"
 
 	// set task hash and push to pending task queue in redis
-	pipe := q.redis.Pipeline()
+	pipe := q.redis.TxPipeline()
 	pipe.HSet(ctx, q.taskKey(taskId), t)
 	pipe.LPush(ctx, q.pendingKey, taskId)
 	if _, err := pipe.Exec(ctx); err != nil {
@@ -165,7 +165,7 @@ func (q *taskQueue) Complete(ctx context.Context, task *ClaimedTask) (bool, erro
 	// remove task id from processing task queue, update task hash, set expiration
 	// for task hash, push task id to completed task queue, and trim the completed
 	// task queue, and execute these commands all at once
-	pipe := q.redis.Pipeline()
+	pipe := q.redis.TxPipeline()
 	pipe.LRem(ctx, q.processingKey, 1, taskId)
 	pipe.HSet(ctx, taskKey, t)
 	pipe.Expire(ctx, taskKey, time.Duration(q.completedTTL))
@@ -204,7 +204,7 @@ func (q *taskQueue) Fail(ctx context.Context, task *ClaimedTask, errMsg error) (
 	// whether or not the task should retry, and if the task should retry, it should
 	// push the task id to the pending queue, else it should push to the failed queue,
 	// trim the failed queue, and set expiration on task hash
-	pipe := q.redis.Pipeline()
+	pipe := q.redis.TxPipeline()
 	pipe.LRem(ctx, q.processingKey, 1, taskId)
 
 	retry := task.Attempts < q.maxAttempts
@@ -266,7 +266,7 @@ func (q *taskQueue) ReclaimStuck(ctx context.Context) ([]string, error) {
 			t.ClaimedAtMs = 0
 			t.ClaimToken = ""
 
-			pipe := q.redis.Pipeline()
+			pipe := q.redis.TxPipeline()
 			pipe.LRem(ctx, q.processingKey, 1, taskId)
 			pipe.LPush(ctx, q.pendingKey, taskId)
 			pipe.HSet(ctx, taskKey, t)
@@ -297,7 +297,7 @@ type QueueStats struct {
 }
 
 func (q *taskQueue) Stats(ctx context.Context) (QueueStats, error) {
-	pipe := q.redis.Pipeline()
+	pipe := q.redis.TxPipeline()
 	pendingCmd := pipe.LLen(ctx, q.pendingKey)
 	processingCmd := pipe.LLen(ctx, q.processingKey)
 	completedCmd := pipe.LLen(ctx, q.completedKey)
