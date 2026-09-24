@@ -13,7 +13,7 @@ type worker struct {
 	queue *taskQueue
 	mux   ServeMux
 
-	processN atomic.Int32
+	processed atomic.Int64
 
 	runMu  sync.Mutex
 	done   chan struct{}
@@ -72,6 +72,14 @@ func (w *worker) IsAlive() bool {
 	default:
 		return true
 	}
+}
+
+func (w *worker) Processed() int64 {
+	return w.processed.Load()
+}
+
+func (w *worker) ResetProcessed() {
+	w.processed.Store(0)
 }
 
 // constantly tries to pull task off of queue
@@ -145,7 +153,7 @@ func (w *worker) Process(parentCtx context.Context, task *ClaimedTask) {
 
 	// complete task
 	if ok, err := w.queue.Complete(parentCtx, task); err == nil && ok {
-		w.processN.Add(1)
+		w.processed.Add(1)
 	} else {
 		fmt.Printf("Error while trying to complete task: %s", err.Error())
 	}
