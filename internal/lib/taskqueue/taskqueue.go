@@ -321,6 +321,44 @@ func (q *taskQueue) Stats(ctx context.Context) (QueueStats, error) {
 	}, nil
 }
 
+func (q *taskQueue) ResetStats() {
+	q.statsMu.Lock()
+	defer q.statsMu.Unlock()
+
+	q.enqueuedN = 0
+	q.completedN = 0
+	q.failedN = 0
+	q.reclaimedN = 0
+}
+
+func (q *taskQueue) Purge(ctx context.Context) error {
+	pipe := q.redis.Pipeline()
+	pipe.Del(ctx, q.pendingKey, q.processingKey, q.completedKey, q.failedKey)
+
+	var cursor uint64
+	pattern := q.taskPrefix + "*"
+
+	for {
+		keys, next, err := q.redis.Scan(ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			return err
+		}
+		for _, k := range keys {
+			pipe.Del(ctx, k)
+		}
+		cursor = next
+		if cursor == 0 {
+			break
+		}
+	}
+	if _, err := pipe.Exec(ctx); err != nil {
+		return err
+	}
+
+	q.ResetStats()
+	return nil
+}
+
 func nowMs() int64 {
 	return time.Now().UnixNano() / int64(time.Millisecond)
 }
