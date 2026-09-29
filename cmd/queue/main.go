@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"github.com/Chance093/roomie-bills/internal/cfg"
@@ -8,6 +9,7 @@ import (
 	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
 	"github.com/Chance093/roomie-bills/internal/lib/discord"
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
+	"github.com/Chance093/roomie-bills/internal/lib/taskqueue"
 	"github.com/Chance093/roomie-bills/internal/tasks"
 )
 
@@ -31,8 +33,8 @@ func main() {
 	defer db.Close()
 
 	// config server and handlers
-	srv := bgjobs.NewServer(bgjobs.ServerConfig{}, nil)
-	mux := bgjobs.NewServeMux()
+	srv := taskqueue.NewServer(context.Background(), taskqueue.ServerOpts{})
+	mux := taskqueue.NewServeMux()
 	handler := tasks.NewHandler(pc, jc, dc, db)
 
 	mux.HandleFunc(tasks.TypeGetAccessToken, handler.GetAccessToken)
