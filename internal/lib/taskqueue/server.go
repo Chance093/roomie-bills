@@ -9,23 +9,23 @@ type Server struct {
 
 type ServerOpts struct {
 	Concurrency int
-	TaskQueueOptions
+	TaskQueueOpts
+	WorkerOpts
 }
 
-func NewServer(ctx context.Context, opts *ServerOpts) Server {
-	if opts == nil {
-		opts = &ServerOpts{}
-	}
-
+func NewServer(ctx context.Context, opts ServerOpts) (Server, error) {
 	if opts.Concurrency <= 0 {
 		opts.Concurrency = 1
 	}
 
-	queue := newTaskQueue(opts.TaskQueueOptions)
+	queue := newTaskQueue(opts.TaskQueueOpts)
 
-	pool := NewWorkerPool(ctx, opts.Concurrency, queue, nil)
+	pool, err := NewWorkerPool(ctx, opts.Concurrency, queue, opts.WorkerOpts)
+	if err != nil {
+		return Server{}, err
+	}
 
-	return Server{pool: pool, parentCtx: ctx}
+	return Server{pool: pool, parentCtx: ctx}, nil
 }
 
 func (s *Server) Run(mux ServeMux) {

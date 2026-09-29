@@ -2,6 +2,7 @@ package taskqueue
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -13,7 +14,7 @@ type worker struct {
 	queue *taskQueue
 	mux   ServeMux
 
-	workerOpts
+	WorkerOpts
 
 	processed atomic.Int64
 
@@ -22,20 +23,31 @@ type worker struct {
 	cancel context.CancelFunc
 }
 
-type workerOpts struct {
+type WorkerOpts struct {
 	claimTimeoutMs int
 }
 
-func NewWorker(name string, queue *taskQueue, mux ServeMux, opts *workerOpts) *worker {
-	if opts == nil {
-		opts = &workerOpts{}
+func NewWorker(name string, queue *taskQueue, mux ServeMux, opts WorkerOpts) (*worker, error) {
+	if queue == nil {
+		return nil, errors.New("Queue must be provided to worker")
 	}
 
-	if opts.claimTimeoutMs <= 0 {
-		opts.claimTimeoutMs = 500
+	w := &worker{
+		name:       name,
+		queue:      queue,
+		mux:        mux,
+		WorkerOpts: opts,
 	}
 
-	return &worker{name: name, queue: queue, mux: mux, workerOpts: *opts}
+	w.setDefaultOpts()
+
+	return w, nil
+}
+
+func (w *worker) setDefaultOpts() {
+	if w.claimTimeoutMs <= 0 {
+		w.claimTimeoutMs = 500
+	}
 }
 
 // Create done channel and cancel context

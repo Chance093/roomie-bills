@@ -13,7 +13,7 @@ import (
 type taskQueue struct {
 	redis *redis.Client
 
-	TaskQueueOptions
+	TaskQueueOpts
 
 	pendingKey    string
 	processingKey string
@@ -28,7 +28,7 @@ type taskQueue struct {
 	reclaimedN int
 }
 
-type TaskQueueOptions struct {
+type TaskQueueOpts struct {
 	queueName        string
 	maxAttempts      int
 	completedTTL     int
@@ -36,44 +36,44 @@ type TaskQueueOptions struct {
 	reclaimMs        int
 }
 
-func newTaskQueue(opts TaskQueueOptions) *taskQueue {
-	if opts.queueName == "" {
-		opts.queueName = "tasks"
-	}
-	if opts.maxAttempts <= 0 {
-		opts.maxAttempts = 3
-	}
-	if opts.completedTTL <= 0 {
-		opts.completedTTL = 300
-	}
-	if opts.completedHistory <= 0 {
-		opts.completedHistory = 50
-	}
-	if opts.reclaimMs <= 0 {
-		opts.reclaimMs = 10000 // 10 seconds
-	}
-
+func newTaskQueue(opts TaskQueueOpts) *taskQueue {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     "127.0.0.1:6379",
 		Protocol: 2,
 	})
 
-	return &taskQueue{
+	q := &taskQueue{
 		redis: rdb,
 
-		TaskQueueOptions: TaskQueueOptions{
-			queueName:        opts.queueName,
-			maxAttempts:      opts.maxAttempts,
-			completedTTL:     opts.completedTTL,
-			completedHistory: opts.completedHistory,
-			reclaimMs:        opts.reclaimMs,
-		},
+		TaskQueueOpts: opts,
 
 		pendingKey:    fmt.Sprintf("queue:%s:pending", opts.queueName),
 		processingKey: fmt.Sprintf("queue:%s:processing", opts.queueName),
 		completedKey:  fmt.Sprintf("queue:%s:completed", opts.queueName),
 		failedKey:     fmt.Sprintf("queue:%s:failed", opts.queueName),
 		taskPrefix:    fmt.Sprintf("queue:%s:task:", opts.queueName),
+	}
+
+	q.setDefaultOpts()
+
+	return q
+}
+
+func (q *taskQueue) setDefaultOpts() {
+	if q.queueName == "" {
+		q.queueName = "tasks"
+	}
+	if q.maxAttempts <= 0 {
+		q.maxAttempts = 3
+	}
+	if q.completedTTL <= 0 {
+		q.completedTTL = 300
+	}
+	if q.completedHistory <= 0 {
+		q.completedHistory = 50
+	}
+	if q.reclaimMs <= 0 {
+		q.reclaimMs = 10000 // 10 seconds
 	}
 }
 

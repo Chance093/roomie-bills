@@ -2,6 +2,7 @@ package taskqueue
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 )
@@ -9,7 +10,7 @@ import (
 type WorkerPool struct {
 	workers []*worker
 
-	workerPoolOpts
+	WorkerOpts
 
 	queue     *taskQueue
 	mux       ServeMux
@@ -18,33 +19,35 @@ type WorkerPool struct {
 	mu sync.Mutex
 }
 
-type workerPoolOpts struct {
-	claimTimeoutMs int
-}
-
-func NewWorkerPool(ctx context.Context, count int, queue *taskQueue, opts *workerPoolOpts) *WorkerPool {
-	if opts == nil {
-		opts = &workerPoolOpts{}
+func NewWorkerPool(ctx context.Context, count int, queue *taskQueue, opts WorkerOpts) (*WorkerPool, error) {
+	if queue == nil {
+		return nil, errors.New("Queue must be provided to worker pool")
 	}
 
 	pool := &WorkerPool{
-		queue:          queue,
-		parentCtx:      ctx,
-		workerPoolOpts: *opts,
+		queue:      queue,
+		parentCtx:  ctx,
+		WorkerOpts: opts,
 	}
 
-	pool.Resize(count)
+	if err := pool.Resize(count); err != nil {
+		return nil, err
+	}
 
-	return pool
+	return pool, nil
 }
 
-func (p *WorkerPool) Resize(size int) {
+func (p *WorkerPool) Resize(size int) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	for len(p.workers) < size {
 		workerName := fmt.Sprintf("Worker - %d", len(p.workers)+1)
-		worker := NewWorker(workerName, p.queue, p.mux, (*workerOpts)(&p.workerPoolOpts))
+		worker, err := NewWorker(workerName, p.queue, p.mux, p.WorkerOpts)
+		if err != nil {
+			return err
+		}
+
 		p.workers = append(p.workers, worker)
 	}
 	for len(p.workers) > size {
@@ -52,6 +55,8 @@ func (p *WorkerPool) Resize(size int) {
 		p.workers[workerIdx].Stop()
 		p.workers = p.workers[:workerIdx]
 	}
+
+	return nil
 }
 
 func (p *WorkerPool) Start(ctx context.Context, mux ServeMux) {
