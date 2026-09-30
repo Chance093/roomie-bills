@@ -9,19 +9,20 @@ import (
 	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
 	"github.com/Chance093/roomie-bills/internal/lib/discord"
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
+	"github.com/Chance093/roomie-bills/internal/lib/taskqueue"
 	"github.com/Chance093/roomie-bills/internal/types"
 	"github.com/Chance093/roomie-bills/internal/utils"
 )
 
 type Handler struct {
 	pc plaid.Client
-	jc bgjobs.Client
+	tc taskqueue.Client
 	dc discord.Client
 	db *db.DB
 }
 
-func NewHandler(pc plaid.Client, jc bgjobs.Client, dc discord.Client, db *db.DB) Handler {
-	return Handler{pc, jc, dc, db}
+func NewHandler(pc plaid.Client, tc taskqueue.Client, dc discord.Client, db *db.DB) Handler {
+	return Handler{pc, tc, dc, db}
 }
 
 func (h Handler) GetAccessToken(ctx context.Context, t bgjobs.Task) error {
@@ -43,7 +44,7 @@ func (h Handler) GetAccessToken(ctx context.Context, t bgjobs.Task) error {
 		return err
 	}
 
-	if _, err := h.jc.Enqueue(newTask); err != nil {
+	if _, err := h.tc.Enqueue(newTask); err != nil {
 		return fmt.Errorf("Could not enqueue new task: %w", err)
 	}
 

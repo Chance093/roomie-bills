@@ -77,7 +77,7 @@ func (q *taskQueue) setDefaultOpts() {
 	}
 }
 
-func (q *taskQueue) Enqueue(ctx context.Context, t Task) (string, error) {
+func (q *taskQueue) Enqueue(ctx context.Context, t TaskMeta) (string, error) {
 	// update task properties
 	taskId := t.Id
 	t.EnqueuedAtMs = nowMs()
@@ -121,7 +121,7 @@ func (q *taskQueue) Claim(ctx context.Context, timeoutMs int) (*ClaimedTask, err
 	}
 
 	// get task hash from redis and update task properties
-	var t Task
+	var t TaskMeta
 	taskKey := q.taskKey(taskId)
 	if err := q.redis.HGetAll(ctx, taskKey).Scan(&t); err != nil {
 		return nil, fmt.Errorf("Error while getting task (%s) hash from redis: %w", taskId, err)
@@ -154,7 +154,7 @@ func (q *taskQueue) Complete(ctx context.Context, task *ClaimedTask) (bool, erro
 	}
 
 	// get task hash from redis and update task properties
-	var t Task
+	var t TaskMeta
 	if err := q.redis.HGetAll(ctx, taskKey).Scan(&t); err != nil {
 		return false, fmt.Errorf("Error while getting task (%s) hash from redis: %w", taskId, err)
 	}
@@ -195,7 +195,7 @@ func (q *taskQueue) Fail(ctx context.Context, task *ClaimedTask, errMsg error) (
 	}
 
 	// get task hash from redis
-	var t Task
+	var t TaskMeta
 	if err := q.redis.HGetAll(ctx, taskKey).Scan(&t); err != nil {
 		return false, fmt.Errorf("Error while getting task (%s) hash from redis: %w", taskId, err)
 	}
@@ -249,7 +249,7 @@ func (q *taskQueue) ReclaimStuck(ctx context.Context) ([]string, error) {
 	for _, taskId := range processing {
 		// get task hash from redis
 		taskKey := q.taskKey(taskId)
-		var t Task
+		var t TaskMeta
 		if err := q.redis.HGetAll(ctx, taskKey).Scan(&t); err != nil {
 			return nil, fmt.Errorf("Error while getting task (%s) hash from redis: %w", taskId, err)
 		}

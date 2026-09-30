@@ -6,7 +6,6 @@ import (
 
 	"github.com/Chance093/roomie-bills/internal/cfg"
 	"github.com/Chance093/roomie-bills/internal/db"
-	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
 	"github.com/Chance093/roomie-bills/internal/lib/discord"
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 	"github.com/Chance093/roomie-bills/internal/lib/taskqueue"
@@ -20,22 +19,21 @@ func main() {
 		log.Fatalf("Could not get env variables: %s\n", err.Error())
 	}
 
-	pc := plaid.NewClient(env)
-	dc, err := discord.NewClient(env)
+	plaidClient := plaid.NewClient(env)
+	discordClient, err := discord.NewClient(env)
 	if err != nil {
 		log.Fatalf("Could not connect to discord client: %s\n", err.Error())
 	}
-
-	jc := bgjobs.NewClient(nil)
-	defer jc.Close()
-
 	db := db.NewDB()
 	defer db.Close()
+
+	ctx := context.Background()
+	taskClient := taskqueue.NewClient(ctx, taskqueue.ClientOpts{})
 
 	// config server and handlers
 	srv := taskqueue.NewServer(context.Background(), taskqueue.ServerOpts{})
 	mux := taskqueue.NewServeMux()
-	handler := tasks.NewHandler(pc, jc, dc, db)
+	handler := tasks.NewHandler(plaidClient, taskClient, discordClient, db)
 
 	mux.HandleFunc(tasks.TypeGetAccessToken, handler.GetAccessToken)
 	mux.HandleFunc(tasks.TypeGetBank, handler.GetBankName)

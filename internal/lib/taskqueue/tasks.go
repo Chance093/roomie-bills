@@ -4,7 +4,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type Task struct {
+type TaskMeta struct {
 	Id            string `redis:"id"`
 	Name          string `redis:"name"`
 	Payload       string `redis:"payload"`
@@ -20,25 +20,39 @@ type Task struct {
 	LastErrorAtMs int64  `redis:"last_error_at_ms"`
 }
 
-type TaskOption struct {
+func NewTaskMeta(task Task) TaskMeta {
+	return TaskMeta{
+		Id:        uuid.New().String(),
+		Name:      task.Name,
+		Payload:   task.Payload,
+		TimeoutMs: task.TimeoutMs,
+	}
+}
+
+type Task struct {
+	Name      string
+	Payload   string
 	TimeoutMs int
 }
 
-func NewTask(name string, payload []byte, opts *TaskOption) *Task {
-	if opts == nil {
-		opts = &TaskOption{}
-	}
+type TaskOpts struct {
+	TimeoutMs int
+}
 
-	if opts.TimeoutMs <= 0 {
-		opts.TimeoutMs = 5000 // 5 seconds (default)
-	}
-
-	t := &Task{
-		Id:        uuid.New().String(),
+func NewTask(name string, payload []byte, opts TaskOpts) Task {
+	t := Task{
 		Name:      name,
 		Payload:   string(payload),
 		TimeoutMs: opts.TimeoutMs,
 	}
 
+	t.setDefaultOpts()
+
 	return t
+}
+
+func (t *Task) setDefaultOpts() {
+	if t.TimeoutMs <= 0 {
+		t.TimeoutMs = 5000 // 5 seconds
+	}
 }
