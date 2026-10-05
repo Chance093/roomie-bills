@@ -13,7 +13,7 @@ type WorkerPool struct {
 	WorkerOpts
 
 	queue     *taskQueue
-	mux       ServeMux
+	mux       *ServeMux
 	parentCtx context.Context
 
 	mu sync.Mutex
@@ -43,7 +43,7 @@ func (p *WorkerPool) Resize(size int) error {
 
 	for len(p.workers) < size {
 		workerName := fmt.Sprintf("Worker - %d", len(p.workers)+1)
-		worker, err := NewWorker(workerName, p.queue, p.mux, p.WorkerOpts)
+		worker, err := NewWorker(workerName, p.queue, p.WorkerOpts)
 		if err != nil {
 			return err
 		}
@@ -59,13 +59,13 @@ func (p *WorkerPool) Resize(size int) error {
 	return nil
 }
 
-func (p *WorkerPool) Start(ctx context.Context, mux ServeMux) {
+func (p *WorkerPool) Start(ctx context.Context, mux *ServeMux) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	p.mux = mux
 	for _, worker := range p.workers {
-		worker.Start(ctx)
+		worker.Start(ctx, p.mux)
 	}
 }
 

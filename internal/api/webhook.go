@@ -69,7 +69,7 @@ func (s *Server) plaidWebhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := s.jc.Enqueue(newTask); err != nil {
+	if _, err := s.tc.Enqueue(newTask); err != nil {
 		writeError(w, http.StatusInternalServerError, fmt.Errorf("Could not enqueue new task: %w", err))
 		return
 	}

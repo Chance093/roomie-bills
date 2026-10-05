@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/Chance093/roomie-bills/internal/db"
-	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
+	"github.com/Chance093/roomie-bills/internal/lib/taskqueue"
 )
 
 // TODO: (REVIEW) find better naming convention for these
@@ -79,16 +79,16 @@ type (
 	}
 )
 
-func newTask(v any, taskType string) (*bgjobs.Task, error) {
+func newTask(v any, taskType string) (taskqueue.Task, error) {
 	p, err := json.Marshal(v)
 	if err != nil {
-		return nil, fmt.Errorf("Could not marshal struct into json: %w\n", err)
+		return taskqueue.Task{}, fmt.Errorf("Could not marshal struct into json: %w\n", err)
 	}
 
-	return bgjobs.NewTask(taskType, p), nil
+	return taskqueue.NewTask(taskType, p, taskqueue.TaskOpts{}), nil
 }
 
-func NewGetAccessTokenTask(publicToken, linkToken string) (*bgjobs.Task, error) {
+func NewGetAccessTokenTask(publicToken, linkToken string) (taskqueue.Task, error) {
 	v := GetAccessTokenPayload{
 		PublicToken: publicToken,
 		LinkToken:   linkToken,
@@ -97,7 +97,7 @@ func NewGetAccessTokenTask(publicToken, linkToken string) (*bgjobs.Task, error) 
 	return newTask(v, TypeGetAccessToken)
 }
 
-func NewGetBankTask(accessToken plaid.AccessToken, linkToken string) (*bgjobs.Task, error) {
+func NewGetBankTask(accessToken plaid.AccessToken, linkToken string) (taskqueue.Task, error) {
 	v := GetBankPayload{
 		AccessToken: accessToken,
 		LinkToken:   linkToken,
@@ -106,7 +106,7 @@ func NewGetBankTask(accessToken plaid.AccessToken, linkToken string) (*bgjobs.Ta
 	return newTask(v, TypeGetBank)
 }
 
-func NewUpdateBankTask(accessToken plaid.AccessToken, linkToken, bank string) (*bgjobs.Task, error) {
+func NewUpdateBankTask(accessToken plaid.AccessToken, linkToken, bank string) (taskqueue.Task, error) {
 	v := UpdateBankPayload{
 		GetBankPayload: GetBankPayload{
 			AccessToken: accessToken,
@@ -118,7 +118,7 @@ func NewUpdateBankTask(accessToken plaid.AccessToken, linkToken, bank string) (*
 	return newTask(v, TypeUpdateBank)
 }
 
-func NewGetAccountsTask(accessToken string, bankId int) (*bgjobs.Task, error) {
+func NewGetAccountsTask(accessToken string, bankId int) (taskqueue.Task, error) {
 	v := GetAccountsPayload{
 		AccessToken: accessToken,
 		BankId:      bankId,
@@ -127,7 +127,7 @@ func NewGetAccountsTask(accessToken string, bankId int) (*bgjobs.Task, error) {
 	return newTask(v, TypeGetAccounts)
 }
 
-func NewAddAccountsTask(accounts []plaid.Account, bankId int) (*bgjobs.Task, error) {
+func NewAddAccountsTask(accounts []plaid.Account, bankId int) (taskqueue.Task, error) {
 	v := AddAccountsPayload{
 		Accounts: accounts,
 		BankId:   bankId,
@@ -136,21 +136,21 @@ func NewAddAccountsTask(accounts []plaid.Account, bankId int) (*bgjobs.Task, err
 	return newTask(v, TypeAddAccounts)
 }
 
-func NewGetOutstandingBillsTask() (*bgjobs.Task, error) {
+func NewGetOutstandingBillsTask() (taskqueue.Task, error) {
 	return newTask("", TypeGetOutstandingBills)
 }
 
-func NewSendOutstandingBillsTask(outstandingBills []db.OutstandingBill) (*bgjobs.Task, error) {
+func NewSendOutstandingBillsTask(outstandingBills []db.OutstandingBill) (taskqueue.Task, error) {
 	v := SendOutstandingBillsPayload{outstandingBills}
 
 	return newTask(v, TypeSendOutstandingBills)
 }
 
-func NewGetAccessTokensTask() (*bgjobs.Task, error) {
+func NewGetAccessTokensTask() (taskqueue.Task, error) {
 	return newTask("", TypeGetAccessTokens)
 }
 
-func NewGetBillsTask(accessTokens []string) (*bgjobs.Task, error) {
+func NewGetBillsTask(accessTokens []string) (taskqueue.Task, error) {
 	v := GetBillsPayload{
 		AccessTokens: accessTokens,
 	}
@@ -158,7 +158,7 @@ func NewGetBillsTask(accessTokens []string) (*bgjobs.Task, error) {
 	return newTask(v, TypeGetBills)
 }
 
-func NewGetNewBillsTask(plaidBills []plaid.Bill) (*bgjobs.Task, error) {
+func NewGetNewBillsTask(plaidBills []plaid.Bill) (taskqueue.Task, error) {
 	v := GetNewBillsPayload{
 		PlaidBills: plaidBills,
 	}
@@ -166,7 +166,7 @@ func NewGetNewBillsTask(plaidBills []plaid.Bill) (*bgjobs.Task, error) {
 	return newTask(v, TypeGetNewBills)
 }
 
-func NewAddBillsPaymentsTask(plaidBills []plaid.Bill) (*bgjobs.Task, error) {
+func NewAddBillsPaymentsTask(plaidBills []plaid.Bill) (taskqueue.Task, error) {
 	v := AddBillsPaymentsPayload{
 		GetNewBillsPayload{PlaidBills: plaidBills},
 	}
@@ -174,7 +174,7 @@ func NewAddBillsPaymentsTask(plaidBills []plaid.Bill) (*bgjobs.Task, error) {
 	return newTask(v, TypeAddBillsPayments)
 }
 
-func NewSendBillsTask(bills []db.Bill) (*bgjobs.Task, error) {
+func NewSendBillsTask(bills []db.Bill) (taskqueue.Task, error) {
 	v := SendBillsPayload{
 		Bills: bills,
 	}
@@ -182,11 +182,11 @@ func NewSendBillsTask(bills []db.Bill) (*bgjobs.Task, error) {
 	return newTask(v, TypeSendBills)
 }
 
-func NewGetUnpaidBillIdsTask() (*bgjobs.Task, error) {
+func NewGetUnpaidBillIdsTask() (taskqueue.Task, error) {
 	return newTask("", TypeGetUnpaidBillIds)
 }
 
-func NewSetDiscordCommandsTask(unpaidBillIds []int64) (*bgjobs.Task, error) {
+func NewSetDiscordCommandsTask(unpaidBillIds []int64) (taskqueue.Task, error) {
 	v := SetDiscordCommandsPayload{
 		UnpaidBillIds: unpaidBillIds,
 	}
@@ -194,6 +194,6 @@ func NewSetDiscordCommandsTask(unpaidBillIds []int64) (*bgjobs.Task, error) {
 	return newTask(v, TypeSetDiscordCommands)
 }
 
-func NewSendNoNewBillsTask() (*bgjobs.Task, error) {
+func NewSendNoNewBillsTask() (taskqueue.Task, error) {
 	return newTask("", TypeSendNoNewBills)
 }

@@ -12,7 +12,7 @@ import (
 type worker struct {
 	name  string
 	queue *taskQueue
-	mux   ServeMux
+	mux   *ServeMux
 
 	WorkerOpts
 
@@ -27,7 +27,7 @@ type WorkerOpts struct {
 	claimTimeoutMs int
 }
 
-func NewWorker(name string, queue *taskQueue, mux ServeMux, opts WorkerOpts) (*worker, error) {
+func NewWorker(name string, queue *taskQueue, opts WorkerOpts) (*worker, error) {
 	if queue == nil {
 		return nil, errors.New("Queue must be provided to worker")
 	}
@@ -35,7 +35,6 @@ func NewWorker(name string, queue *taskQueue, mux ServeMux, opts WorkerOpts) (*w
 	w := &worker{
 		name:       name,
 		queue:      queue,
-		mux:        mux,
 		WorkerOpts: opts,
 	}
 
@@ -45,14 +44,14 @@ func NewWorker(name string, queue *taskQueue, mux ServeMux, opts WorkerOpts) (*w
 }
 
 func (w *worker) setDefaultOpts() {
-	if w.claimTimeoutMs <= 0 {
-		w.claimTimeoutMs = 500
+	if w.claimTimeoutMs < 1000 {
+		w.claimTimeoutMs = 1000
 	}
 }
 
 // Create done channel and cancel context
 // If its already running, nop
-func (w *worker) Start(ctx context.Context) {
+func (w *worker) Start(ctx context.Context, mux *ServeMux) {
 	w.runMu.Lock()
 	defer w.runMu.Unlock()
 
@@ -69,6 +68,8 @@ func (w *worker) Start(ctx context.Context) {
 	w.cancel = cancel
 	done := make(chan struct{})
 	w.done = done
+
+	w.mux = mux
 
 	go w.run(ctx, done)
 }

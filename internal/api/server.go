@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/Chance093/roomie-bills/internal/db"
-	"github.com/Chance093/roomie-bills/internal/lib/bgjobs"
 	"github.com/Chance093/roomie-bills/internal/lib/discord"
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
+	"github.com/Chance093/roomie-bills/internal/lib/taskqueue"
 )
 
 type Server struct {
@@ -14,20 +14,20 @@ type Server struct {
 	Addr   string
 	DB     *db.DB
 	pc     plaid.Client
-	jc     bgjobs.Client
+	tc     taskqueue.Client
 	dc     discord.Client
 }
 
 // NewServer intializes a server, sets up routes, and allows database access
 // to all handlers associated with that server.
-func NewServer(port string, pc plaid.Client, jc bgjobs.Client, dc discord.Client, db *db.DB) *Server {
+func NewServer(port string, pc plaid.Client, tc taskqueue.Client, dc discord.Client, db *db.DB) *Server {
 	// init server
 	s := &Server{
 		Router: http.NewServeMux(),
 		Addr:   ":" + port,
 		DB:     db,
 		pc:     pc,
-		jc:     jc,
+		tc:     tc,
 		dc:     dc,
 	}
 

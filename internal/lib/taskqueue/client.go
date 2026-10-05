@@ -17,7 +17,7 @@ func NewClient(ctx context.Context, opts ClientOpts) Client {
 	return Client{parentCtx: ctx, queue: queue}
 }
 
-func (c Client) Enqueue(task Task) {
+func (c Client) Enqueue(task Task) (string, error) {
 	taskMeta := NewTaskMeta(task)
-	c.queue.Enqueue(c.parentCtx, taskMeta)
+	return c.queue.Enqueue(c.parentCtx, taskMeta)
 }

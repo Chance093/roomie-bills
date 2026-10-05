@@ -1,6 +1,12 @@
 package taskqueue
 
-import "context"
+import (
+	"context"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+)
 
 type Server struct {
 	pool      *WorkerPool
@@ -25,6 +31,13 @@ func NewServer(ctx context.Context, opts ServerOpts) Server {
 	return Server{pool: pool, parentCtx: ctx}
 }
 
-func (s *Server) Run(mux ServeMux) {
+func (s *Server) Run(mux *ServeMux) {
 	s.pool.Start(s.parentCtx, mux)
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	<-sigCh
+
+	log.Print("shutting down")
+	s.pool.Stop()
 }
