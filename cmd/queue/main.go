@@ -31,7 +31,7 @@ func main() {
 	taskClient := taskqueue.NewClient(ctx, taskqueue.ClientOpts{})
 
 	// config server and handlers
-	srv := taskqueue.NewServer(context.Background(), taskqueue.ServerOpts{})
+	srv := taskqueue.NewServer(ctx, taskqueue.ServerOpts{})
 	mux := taskqueue.NewServeMux()
 	handler := tasks.NewHandler(plaidClient, taskClient, discordClient, db)
 

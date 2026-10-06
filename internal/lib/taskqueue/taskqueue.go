@@ -29,29 +29,33 @@ type taskQueue struct {
 }
 
 type TaskQueueOpts struct {
-	queueName        string
-	maxAttempts      int
-	completedTTL     int
-	completedHistory int
-	reclaimMs        int
+	QueueName        string
+	MaxAttempts      int
+	CompletedTTL     int
+	CompletedHistory int
+	ReclaimMs        int
 }
 
-func newTaskQueue(opts TaskQueueOpts) *taskQueue {
+func NewTaskQueue(opts TaskQueueOpts) *taskQueue {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     "127.0.0.1:6379",
 		Protocol: 2,
 	})
+
+	if opts.QueueName == "" {
+		opts.QueueName = "tasks"
+	}
 
 	q := &taskQueue{
 		redis: rdb,
 
 		TaskQueueOpts: opts,
 
-		pendingKey:    fmt.Sprintf("queue:%s:pending", opts.queueName),
-		processingKey: fmt.Sprintf("queue:%s:processing", opts.queueName),
-		completedKey:  fmt.Sprintf("queue:%s:completed", opts.queueName),
-		failedKey:     fmt.Sprintf("queue:%s:failed", opts.queueName),
-		taskPrefix:    fmt.Sprintf("queue:%s:task:", opts.queueName),
+		pendingKey:    fmt.Sprintf("queue:%s:pending", opts.QueueName),
+		processingKey: fmt.Sprintf("queue:%s:processing", opts.QueueName),
+		completedKey:  fmt.Sprintf("queue:%s:completed", opts.QueueName),
+		failedKey:     fmt.Sprintf("queue:%s:failed", opts.QueueName),
+		taskPrefix:    fmt.Sprintf("queue:%s:task:", opts.QueueName),
 	}
 
 	q.setDefaultOpts()
@@ -60,24 +64,21 @@ func newTaskQueue(opts TaskQueueOpts) *taskQueue {
 }
 
 func (q *taskQueue) setDefaultOpts() {
-	if q.queueName == "" {
-		q.queueName = "tasks"
+	if q.MaxAttempts <= 0 {
+		q.MaxAttempts = 3
 	}
-	if q.maxAttempts <= 0 {
-		q.maxAttempts = 3
+	if q.CompletedTTL <= 0 {
+		q.CompletedTTL = 300
 	}
-	if q.completedTTL <= 0 {
-		q.completedTTL = 300
+	if q.CompletedHistory <= 0 {
+		q.CompletedHistory = 50
 	}
-	if q.completedHistory <= 0 {
-		q.completedHistory = 50
-	}
-	if q.reclaimMs <= 0 {
-		q.reclaimMs = 10000 // 10 seconds
+	if q.ReclaimMs <= 0 {
+		q.ReclaimMs = 10000 // 10 seconds
 	}
 }
 
-func (q *taskQueue) Enqueue(ctx context.Context, t TaskMeta) (string, error) {
+func (q *taskQueue) enqueue(ctx context.Context, t TaskMeta) (string, error) {
 	// update task properties
 	taskId := t.Id
 	t.EnqueuedAtMs = nowMs()
@@ -107,7 +108,7 @@ type ClaimedTask struct {
 	ClaimToken string
 }
 
-func (q *taskQueue) Claim(ctx context.Context, timeoutMs int) (*ClaimedTask, error) {
+func (q *taskQueue) claim(ctx context.Context, timeoutMs int) (*ClaimedTask, error) {
 	// set timeout for blocking move
 	timeout := max(time.Duration(timeoutMs)*time.Millisecond, 100*time.Millisecond)
 
@@ -140,7 +141,7 @@ func (q *taskQueue) Claim(ctx context.Context, timeoutMs int) (*ClaimedTask, err
 	return &ClaimedTask{taskId, t.Name, t.Payload, t.TimeoutMs, t.Attempts, t.ClaimToken}, nil
 }
 
-func (q *taskQueue) Complete(ctx context.Context, task *ClaimedTask) (bool, error) {
+func (q *taskQueue) complete(ctx context.Context, task *ClaimedTask) (bool, error) {
 	// compare claim token in claimed task with claim token in redis
 	taskId := task.Id
 	taskKey := q.taskKey(taskId)
@@ -168,9 +169,9 @@ func (q *taskQueue) Complete(ctx context.Context, task *ClaimedTask) (bool, erro
 	pipe := q.redis.TxPipeline()
 	pipe.LRem(ctx, q.processingKey, 1, taskId)
 	pipe.HSet(ctx, taskKey, t)
-	pipe.Expire(ctx, taskKey, time.Duration(q.completedTTL))
+	pipe.Expire(ctx, taskKey, time.Duration(q.CompletedTTL))
 	pipe.LPush(ctx, q.completedKey, taskId)
-	pipe.LTrim(ctx, q.completedKey, 0, int64(q.completedHistory)-1)
+	pipe.LTrim(ctx, q.completedKey, 0, int64(q.CompletedHistory)-1)
 	if _, err := pipe.Exec(ctx); err != nil {
 		return false, fmt.Errorf("Error while performing pipeline redis calls for completed task (%s): %w", taskId, err)
 	}
@@ -182,7 +183,7 @@ func (q *taskQueue) Complete(ctx context.Context, task *ClaimedTask) (bool, erro
 	return true, nil
 }
 
-func (q *taskQueue) Fail(ctx context.Context, task *ClaimedTask, errMsg error) (bool, error) {
+func (q *taskQueue) fail(ctx context.Context, task *ClaimedTask, errMsg error) (bool, error) {
 	// compare claim token in claimed task with claim token in redis
 	taskId := task.Id
 	taskKey := q.taskKey(taskId)
@@ -207,7 +208,7 @@ func (q *taskQueue) Fail(ctx context.Context, task *ClaimedTask, errMsg error) (
 	pipe := q.redis.TxPipeline()
 	pipe.LRem(ctx, q.processingKey, 1, taskId)
 
-	retry := task.Attempts < q.maxAttempts
+	retry := task.Attempts < q.MaxAttempts
 	if retry {
 		t.Status = "pending"
 		t.LastError = errMsg.Error()
@@ -221,8 +222,8 @@ func (q *taskQueue) Fail(ctx context.Context, task *ClaimedTask, errMsg error) (
 		t.LastErrorAtMs = nowMs()
 		t.ClaimToken = ""
 		pipe.LPush(ctx, q.failedKey, taskId)
-		pipe.LTrim(ctx, q.failedKey, 0, int64(q.completedHistory)-1)
-		pipe.Expire(ctx, taskKey, time.Duration(q.completedTTL))
+		pipe.LTrim(ctx, q.failedKey, 0, int64(q.CompletedHistory)-1)
+		pipe.Expire(ctx, taskKey, time.Duration(q.CompletedTTL))
 	}
 
 	pipe.HSet(ctx, taskKey, t)
@@ -239,7 +240,7 @@ func (q *taskQueue) Fail(ctx context.Context, task *ClaimedTask, errMsg error) (
 
 // go through processing list and find stuck jobs
 // if stuck, put back in pending
-func (q *taskQueue) ReclaimStuck(ctx context.Context) ([]string, error) {
+func (q *taskQueue) reclaimStuck(ctx context.Context) ([]string, error) {
 	processing, err := q.redis.LRange(ctx, q.processingKey, 0, -1).Result()
 	if err != nil {
 		return nil, fmt.Errorf("Error while getting all tasks in processing queue: %w", err)
@@ -259,8 +260,8 @@ func (q *taskQueue) ReclaimStuck(ctx context.Context) ([]string, error) {
 		//   - claimed_at_ms is missing (worker crashed between BLMOVE and the
 		//     metadata write) and (now - enqueued_at_ms) > 2 * reclaimMs.
 		now := nowMs()
-		if (t.ClaimedAtMs > 0 && (now-t.ClaimedAtMs) > int64(q.reclaimMs)) ||
-			(t.ClaimedAtMs == 0 && (now-t.EnqueuedAtMs) > 2*int64(q.reclaimMs)) {
+		if (t.ClaimedAtMs > 0 && (now-t.ClaimedAtMs) > int64(q.ReclaimMs)) ||
+			(t.ClaimedAtMs == 0 && (now-t.EnqueuedAtMs) > 2*int64(q.ReclaimMs)) {
 			t.Status = "pending"
 			t.ReclaimedAtMs = now
 			t.ClaimedAtMs = 0
@@ -285,7 +286,7 @@ func (q *taskQueue) ReclaimStuck(ctx context.Context) ([]string, error) {
 	return reclaimed, nil
 }
 
-type QueueStats struct {
+type queueStats struct {
 	EnqueuedTotal   int
 	CompletedTotal  int
 	FailedTotal     int
@@ -296,20 +297,20 @@ type QueueStats struct {
 	FailedDepth     int64
 }
 
-func (q *taskQueue) Stats(ctx context.Context) (QueueStats, error) {
+func (q *taskQueue) stats(ctx context.Context) (queueStats, error) {
 	pipe := q.redis.TxPipeline()
 	pendingCmd := pipe.LLen(ctx, q.pendingKey)
 	processingCmd := pipe.LLen(ctx, q.processingKey)
 	completedCmd := pipe.LLen(ctx, q.completedKey)
 	failedCmd := pipe.LLen(ctx, q.failedKey)
 	if _, err := pipe.Exec(ctx); err != nil {
-		return QueueStats{}, fmt.Errorf("Error while performing pipeline redis calls for stats: %w", err)
+		return queueStats{}, fmt.Errorf("Error while performing pipeline redis calls for stats: %w", err)
 	}
 
 	q.statsMu.Lock()
 	defer q.statsMu.Unlock()
 
-	return QueueStats{
+	return queueStats{
 		EnqueuedTotal:   q.enqueuedN,
 		CompletedTotal:  q.completedN,
 		FailedTotal:     q.failedN,
@@ -321,7 +322,7 @@ func (q *taskQueue) Stats(ctx context.Context) (QueueStats, error) {
 	}, nil
 }
 
-func (q *taskQueue) ResetStats() {
+func (q *taskQueue) resetStats() {
 	q.statsMu.Lock()
 	defer q.statsMu.Unlock()
 
@@ -331,7 +332,7 @@ func (q *taskQueue) ResetStats() {
 	q.reclaimedN = 0
 }
 
-func (q *taskQueue) Purge(ctx context.Context) error {
+func (q *taskQueue) purge(ctx context.Context) error {
 	pipe := q.redis.Pipeline()
 	pipe.Del(ctx, q.pendingKey, q.processingKey, q.completedKey, q.failedKey)
 
@@ -355,7 +356,7 @@ func (q *taskQueue) Purge(ctx context.Context) error {
 		return err
 	}
 
-	q.ResetStats()
+	q.resetStats()
 	return nil
 }
 

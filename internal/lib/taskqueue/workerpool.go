@@ -2,7 +2,6 @@ package taskqueue
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 )
@@ -19,11 +18,7 @@ type WorkerPool struct {
 	mu sync.Mutex
 }
 
-func NewWorkerPool(ctx context.Context, count int, queue *taskQueue, opts WorkerOpts) (*WorkerPool, error) {
-	if queue == nil {
-		return nil, errors.New("Queue must be provided to worker pool")
-	}
-
+func NewWorkerPool(ctx context.Context, count int, queue *taskQueue, opts WorkerOpts) *WorkerPool {
 	pool := &WorkerPool{
 		queue:      queue,
 		parentCtx:  ctx,
@@ -31,10 +26,10 @@ func NewWorkerPool(ctx context.Context, count int, queue *taskQueue, opts Worker
 	}
 
 	if err := pool.Resize(count); err != nil {
-		return nil, err
+		return nil
 	}
 
-	return pool, nil
+	return pool
 }
 
 func (p *WorkerPool) Resize(size int) error {
