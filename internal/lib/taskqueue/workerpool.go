@@ -6,6 +6,9 @@ import (
 	"sync"
 )
 
+// Worker pool handles the initialization and orchestation of workers doing 
+// concurrent work. It is meant to provide methods that will run on every 
+// worker in the worker pool.
 type workerPool struct {
 	workers []*worker
 
@@ -18,6 +21,8 @@ type workerPool struct {
 	mu sync.Mutex
 }
 
+// Creates a new worker pool which initializes workers based on the count passed 
+// in. To start the workers in the worker pool, try running workerPool.start().
 func newWorkerPool(ctx context.Context, count int, queue *taskQueue, opts workerOpts) *workerPool {
 	pool := &workerPool{
 		queue:      queue,
@@ -32,6 +37,8 @@ func newWorkerPool(ctx context.Context, count int, queue *taskQueue, opts worker
 	return pool
 }
 
+// Takes a size and either increases or decreases the amount of workers 
+// in the worker pool to match the size. Works concurrently.
 func (p *workerPool) resize(size int) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -54,6 +61,7 @@ func (p *workerPool) resize(size int) error {
 	return nil
 }
 
+// Will start all the workers in the worker pool. Works concurrently.
 func (p *workerPool) start(ctx context.Context, mux *ServeMux) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -64,6 +72,7 @@ func (p *workerPool) start(ctx context.Context, mux *ServeMux) {
 	}
 }
 
+// Will stop all the workers in the worker pool. Works concurrently.
 func (p *workerPool) stop() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -73,6 +82,8 @@ func (p *workerPool) stop() {
 	}
 }
 
+// Will return the amount of workers that are alive in the worker pool. 
+// Works concurrently.
 func (p *workerPool) running() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -87,6 +98,8 @@ func (p *workerPool) running() int {
 	return n
 }
 
+// Will return the amount of processed tasks aggretated among all the 
+// workers in the worker pool. Works concurrently.
 func (p *workerPool) processed() int64 {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -99,6 +112,8 @@ func (p *workerPool) processed() int64 {
 	return n
 }
 
+// Will reset the processed amount in every worker in the worker pool.
+// Works concurrently.
 func (p *workerPool) resetProcessed() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
