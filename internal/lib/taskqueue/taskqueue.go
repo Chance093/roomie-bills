@@ -27,6 +27,7 @@ type taskQueue struct {
 	// Format: "queue:{queueName}:tasks:{taskId}"
 	taskPrefix string
 
+	// Mutex to atomically increment stats
 	statsMu sync.Mutex
 	// Amount of tasks that have been enqueued
 	enqueuedN int
