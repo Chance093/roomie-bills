@@ -11,7 +11,7 @@ import (
 // run as a cron job every saturday
 func main() {
 	// starts task pipeline for getting outstanding bills and then new bills
-	tc := taskqueue.NewClient(context.Background(), taskqueue.ClientOpts{})
+	tc := taskqueue.NewClient(context.Background())
 
 	newTask, err := tasks.NewGetOutstandingBillsTask()
 	if err != nil {

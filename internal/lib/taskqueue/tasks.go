@@ -91,7 +91,7 @@ func newTaskMeta(task Task) TaskMeta {
 	}
 }
 
-type claimedTask struct {
+type ClaimedTask struct {
 	// Random uuid
 	Id string
 

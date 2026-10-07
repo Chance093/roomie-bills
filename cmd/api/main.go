@@ -23,7 +23,7 @@ func main() {
 		log.Fatalf("Could not get env variables: %s\n", err.Error())
 	}
 	pc := plaid.NewClient(env)
-	tc := taskqueue.NewClient(context.Background(), taskqueue.ClientOpts{})
+	tc := taskqueue.NewClient(context.Background())
 	db := db.NewDB()
 	defer db.Close()
 

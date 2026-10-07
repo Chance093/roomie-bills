@@ -157,7 +157,7 @@ func (q *taskQueue) enqueue(ctx context.Context, t TaskMeta) (string, error) {
 // Allows a worker to claim a task. Moves a TaskMeta id from the pending
 // queue to a processing queue. It then updates some TaskMeta properties
 // to reflect that the Task is processing and is claimed.
-func (q *taskQueue) claim(ctx context.Context, timeoutMs int) (*claimedTask, error) {
+func (q *taskQueue) claim(ctx context.Context, timeoutMs int) (*ClaimedTask, error) {
 	// set timeout for blocking move
 	timeout := max(time.Duration(timeoutMs)*time.Millisecond, 100*time.Millisecond)
 
@@ -187,13 +187,13 @@ func (q *taskQueue) claim(ctx context.Context, timeoutMs int) (*claimedTask, err
 		return nil, fmt.Errorf("Error while updating task (%s) hash in redis: %w", taskId, err)
 	}
 
-	return &claimedTask{taskId, t.Name, t.Payload, t.TimeoutMs, t.Attempts, t.ClaimToken}, nil
+	return &ClaimedTask{taskId, t.Name, t.Payload, t.TimeoutMs, t.Attempts, t.ClaimToken}, nil
 }
 
 // Allows a worker to complete a task. Moves a TaskMeta id from the
 // processing queue to a completed queue. It then updates TaskMeta properties
 // to show completed. Also increments the completedN property atomically.
-func (q *taskQueue) complete(ctx context.Context, task *claimedTask) (bool, error) {
+func (q *taskQueue) complete(ctx context.Context, task *ClaimedTask) (bool, error) {
 	// compare claim token in claimed task with claim token in redis
 	taskId := task.Id
 	taskKey := q.taskKey(taskId)
@@ -239,7 +239,7 @@ func (q *taskQueue) complete(ctx context.Context, task *claimedTask) (bool, erro
 // queue to a failed queue. If the task has not reached max attempts, it moves
 // the task back to pending instead. It then updates TaskMeta properties to
 // show failed or pending. Also increments the failedN property atomically.
-func (q *taskQueue) fail(ctx context.Context, task *claimedTask, errMsg error) (bool, error) {
+func (q *taskQueue) fail(ctx context.Context, task *ClaimedTask, errMsg error) (bool, error) {
 	// compare claim token in claimed task with claim token in redis
 	taskId := task.Id
 	taskKey := q.taskKey(taskId)

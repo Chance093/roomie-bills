@@ -158,7 +158,7 @@ func (w *worker) run(ctx context.Context, done chan struct{}) {
 // timeout and some channels for goroutine communication, and blocking
 // until we receive our result on a channel. Then we move task to either
 // completed or failed.
-func (w *worker) process(parentCtx context.Context, task *claimedTask) {
+func (w *worker) process(parentCtx context.Context, task *ClaimedTask) {
 	// look up task handler in mux
 	h, err := w.mux.getHandler(task.Name)
 	if err != nil {
