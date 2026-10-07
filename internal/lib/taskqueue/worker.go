@@ -14,20 +14,20 @@ type worker struct {
 	queue *taskQueue
 	mux   *ServeMux
 
-	WorkerOpts
+	workerOpts
 
-	processed atomic.Int64
+	processedN atomic.Int64
 
 	runMu  sync.Mutex
 	done   chan struct{}
 	cancel context.CancelFunc
 }
 
-type WorkerOpts struct {
+type workerOpts struct {
 	claimTimeoutMs int
 }
 
-func NewWorker(name string, queue *taskQueue, opts WorkerOpts) (*worker, error) {
+func newWorker(name string, queue *taskQueue, opts workerOpts) (*worker, error) {
 	if queue == nil {
 		return nil, errors.New("Queue must be provided to worker")
 	}
@@ -35,7 +35,7 @@ func NewWorker(name string, queue *taskQueue, opts WorkerOpts) (*worker, error) 
 	w := &worker{
 		name:       name,
 		queue:      queue,
-		WorkerOpts: opts,
+		workerOpts: opts,
 	}
 
 	w.setDefaultOpts()
@@ -51,7 +51,7 @@ func (w *worker) setDefaultOpts() {
 
 // Create done channel and cancel context
 // If its already running, nop
-func (w *worker) Start(ctx context.Context, mux *ServeMux) {
+func (w *worker) start(ctx context.Context, mux *ServeMux) {
 	w.runMu.Lock()
 	defer w.runMu.Unlock()
 
@@ -74,7 +74,7 @@ func (w *worker) Start(ctx context.Context, mux *ServeMux) {
 	go w.run(ctx, done)
 }
 
-func (w *worker) Stop() {
+func (w *worker) stop() {
 	w.runMu.Lock()
 	cancel := w.cancel
 	w.runMu.Unlock()
@@ -84,7 +84,7 @@ func (w *worker) Stop() {
 	}
 }
 
-func (w *worker) IsAlive() bool {
+func (w *worker) isAlive() bool {
 	w.runMu.Lock()
 	done := w.done
 	w.runMu.Unlock()
@@ -101,12 +101,12 @@ func (w *worker) IsAlive() bool {
 	}
 }
 
-func (w *worker) Processed() int64 {
-	return w.processed.Load()
+func (w *worker) processed() int64 {
+	return w.processedN.Load()
 }
 
-func (w *worker) ResetProcessed() {
-	w.processed.Store(0)
+func (w *worker) resetProcessed() {
+	w.processedN.Store(0)
 }
 
 // constantly tries to pull task off of queue
@@ -120,7 +120,7 @@ func (w *worker) run(ctx context.Context, done chan struct{}) {
 		default: // do nothing
 		}
 
-		task, err := w.queue.Claim(ctx, w.claimTimeoutMs)
+		task, err := w.queue.claim(ctx, w.claimTimeoutMs)
 		if err != nil {
 			select {
 			case <-ctx.Done(): // Stop() was called, so return
@@ -145,7 +145,7 @@ func (w *worker) process(parentCtx context.Context, task *ClaimedTask) {
 	// look up task handler in mux
 	h, err := w.mux.getHandler(task.Name)
 	if err != nil {
-		if _, err := w.queue.Fail(parentCtx, task, err); err != nil {
+		if _, err := w.queue.fail(parentCtx, task, err); err != nil {
 			fmt.Printf("Error while trying to fail task: %s", err.Error())
 		}
 		return
@@ -174,15 +174,15 @@ func (w *worker) process(parentCtx context.Context, task *ClaimedTask) {
 
 	// if error, fail task
 	if err != nil {
-		if _, err := w.queue.Fail(parentCtx, task, err); err != nil {
+		if _, err := w.queue.fail(parentCtx, task, err); err != nil {
 			fmt.Printf("Error while trying to fail task: %s", err.Error())
 		}
 		return
 	}
 
 	// complete task
-	if ok, err := w.queue.Complete(parentCtx, task); err == nil && ok {
-		w.processed.Add(1)
+	if ok, err := w.queue.complete(parentCtx, task); err == nil && ok {
+		w.processedN.Add(1)
 	} else {
 		fmt.Printf("Error while trying to complete task: %s", err.Error())
 	}

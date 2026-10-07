@@ -6,10 +6,10 @@ import (
 	"sync"
 )
 
-type WorkerPool struct {
+type workerPool struct {
 	workers []*worker
 
-	WorkerOpts
+	workerOpts
 
 	queue     *taskQueue
 	mux       *ServeMux
@@ -18,27 +18,27 @@ type WorkerPool struct {
 	mu sync.Mutex
 }
 
-func NewWorkerPool(ctx context.Context, count int, queue *taskQueue, opts WorkerOpts) *WorkerPool {
-	pool := &WorkerPool{
+func newWorkerPool(ctx context.Context, count int, queue *taskQueue, opts workerOpts) *workerPool {
+	pool := &workerPool{
 		queue:      queue,
 		parentCtx:  ctx,
-		WorkerOpts: opts,
+		workerOpts: opts,
 	}
 
-	if err := pool.Resize(count); err != nil {
+	if err := pool.resize(count); err != nil {
 		return nil
 	}
 
 	return pool
 }
 
-func (p *WorkerPool) Resize(size int) error {
+func (p *workerPool) resize(size int) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	for len(p.workers) < size {
 		workerName := fmt.Sprintf("Worker - %d", len(p.workers)+1)
-		worker, err := NewWorker(workerName, p.queue, p.WorkerOpts)
+		worker, err := newWorker(workerName, p.queue, p.workerOpts)
 		if err != nil {
 			return err
 		}
@@ -47,39 +47,39 @@ func (p *WorkerPool) Resize(size int) error {
 	}
 	for len(p.workers) > size {
 		workerIdx := len(p.workers) - 1
-		p.workers[workerIdx].Stop()
+		p.workers[workerIdx].stop()
 		p.workers = p.workers[:workerIdx]
 	}
 
 	return nil
 }
 
-func (p *WorkerPool) Start(ctx context.Context, mux *ServeMux) {
+func (p *workerPool) start(ctx context.Context, mux *ServeMux) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	p.mux = mux
 	for _, worker := range p.workers {
-		worker.Start(ctx, p.mux)
+		worker.start(ctx, p.mux)
 	}
 }
 
-func (p *WorkerPool) Stop() {
+func (p *workerPool) stop() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	for _, worker := range p.workers {
-		worker.Stop()
+		worker.stop()
 	}
 }
 
-func (p *WorkerPool) Running() int {
+func (p *workerPool) running() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	var n int
 	for _, worker := range p.workers {
-		if worker.IsAlive() {
+		if worker.isAlive() {
 			n++
 		}
 	}
@@ -87,23 +87,23 @@ func (p *WorkerPool) Running() int {
 	return n
 }
 
-func (p *WorkerPool) Processed() int64 {
+func (p *workerPool) processed() int64 {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	var n int64
 	for _, worker := range p.workers {
-		n += worker.Processed()
+		n += worker.processed()
 	}
 
 	return n
 }
 
-func (p *WorkerPool) ResetProcessed() {
+func (p *workerPool) resetProcessed() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	for _, worker := range p.workers {
-		worker.ResetProcessed()
+		worker.resetProcessed()
 	}
 }

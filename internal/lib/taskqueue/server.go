@@ -13,7 +13,7 @@ import (
 // opposed to a producer or consumer). Initialized and run in a
 // process you intend to handle asynchronous tasks.
 type server struct {
-	pool      *WorkerPool
+	pool      *workerPool
 	queue     *taskQueue
 	parentCtx context.Context
 }
@@ -56,7 +56,7 @@ func newServer(ctx context.Context, queue *taskQueue, opts ServerOpts) server {
 		opts.Concurrency = 1
 	}
 
-	pool := NewWorkerPool(ctx, opts.Concurrency, queue, WorkerOpts{opts.ClaimTimeoutMs})
+	pool := newWorkerPool(ctx, opts.Concurrency, queue, workerOpts{opts.ClaimTimeoutMs})
 
 	return server{pool: pool, parentCtx: ctx}
 }
@@ -65,12 +65,12 @@ func newServer(ctx context.Context, queue *taskQueue, opts ServerOpts) server {
 // from the task queue to process the work. Will run until the process is
 // interrupted.
 func (s *server) Run(mux *ServeMux) {
-	s.pool.Start(s.parentCtx, mux)
+	s.pool.start(s.parentCtx, mux)
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	<-sigCh
 
 	log.Print("shutting down")
-	s.pool.Stop()
+	s.pool.stop()
 }
