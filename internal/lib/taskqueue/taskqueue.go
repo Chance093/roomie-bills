@@ -15,34 +15,72 @@ type taskQueue struct {
 
 	TaskQueueOpts
 
-	pendingKey    string
+	// Redis key for pending queue.
+	pendingKey string
+	// Redis key for processing queue.
 	processingKey string
-	completedKey  string
-	failedKey     string
-	taskPrefix    string
+	// Redis key for completed queue.
+	completedKey string
+	// Redis key for failed queue.
+	failedKey string
+	// Prefix for all TaskMeta hash keys.
+	// Format: "queue:{queueName}:tasks:{taskId}"
+	taskPrefix string
 
-	statsMu    sync.Mutex
-	enqueuedN  int
+	statsMu sync.Mutex
+	// Amount of tasks that have been enqueued
+	enqueuedN int
+	// Amount of tasks that have been completed
 	completedN int
-	failedN    int
+	// Amount of tasks that have been failed
+	failedN int
+	// Amount of tasks that have been reclaimed
 	reclaimedN int
 }
 
 type TaskQueueOpts struct {
-	QueueName        string
-	MaxAttempts      int
-	CompletedTTL     int
+	// Formatted in redis as "queue:{queueName}:{queueType}".
+	// Default: "tasks" ("queue:tasks:{queueType}").
+	QueueName string
+
+	// Max attempts a worker will try to process a task.
+	// Default: 3.
+	MaxAttempts int
+
+	// Time-To-Live (seconds) for completed tasks.
+	// Default: 300.
+	CompletedTTL int
+
+	// The max amount of tasks allowed to sit in completed queue before trim.
+	// Default: 50.
 	CompletedHistory int
-	ReclaimMs        int
+
+	// The amount of time (ms) a stuck task should wait before being reclaimed.
+	// Default: 10,000 (10 seconds).
+	ReclaimMs int
+
 	RedisClientOpts
 }
 
 type RedisClientOpts struct {
-	Addr     string
+	// Addr is the address formated as host:port
+	Addr string
+
+	// Username is used to authenticate the current connection
+	// with one of the connections defined in the ACL list when connecting
+	// to a Redis 6.0 instance, or greater, that is using the Redis ACL system.
 	Username string
+
+	// Password is an optional password. Must match the password specified in the
+	// `requirepass` server configuration option (if connecting to a Redis 5.0 instance, or lower),
+	// or the User Password when connecting to a Redis 6.0 instance, or greater,
+	// that is using the Redis ACL system.
 	Password string
 }
 
+// Initializes a redis client within a task queue to be passed as
+// a custom queue to either NewServerWithCustomQueue() or
+// NewClientWithCustomQueue().
 func NewTaskQueue(opts TaskQueueOpts) *taskQueue {
 	if opts.RedisClientOpts.Addr == "" {
 		opts.RedisClientOpts.Addr = "127.0.0.1:6379"
@@ -75,6 +113,7 @@ func NewTaskQueue(opts TaskQueueOpts) *taskQueue {
 	return q
 }
 
+// sets default opts for the task queue
 func (q *taskQueue) setDefaultOpts() {
 	if q.MaxAttempts <= 0 {
 		q.MaxAttempts = 3
@@ -90,6 +129,9 @@ func (q *taskQueue) setDefaultOpts() {
 	}
 }
 
+// Allows a client to enqueue a task. Stores the TaskMeta as a hash, and
+// then pushes the TaskMeta id to a pending queue. Also increments the
+// enqueuedN property atomically.
 func (q *taskQueue) enqueue(ctx context.Context, t TaskMeta) (string, error) {
 	// update task properties
 	taskId := t.Id
@@ -111,15 +153,9 @@ func (q *taskQueue) enqueue(ctx context.Context, t TaskMeta) (string, error) {
 	return taskId, nil
 }
 
-type ClaimedTask struct {
-	Id         string
-	Name       string
-	Payload    string
-	TimeoutMs  int
-	Attempts   int
-	ClaimToken string
-}
-
+// Allows a worker to claim a task. Moves a TaskMeta id from the pending
+// queue to a processing queue. It then updates some TaskMeta properties
+// to reflect that the Task is processing and is claimed.
 func (q *taskQueue) claim(ctx context.Context, timeoutMs int) (*ClaimedTask, error) {
 	// set timeout for blocking move
 	timeout := max(time.Duration(timeoutMs)*time.Millisecond, 100*time.Millisecond)
@@ -153,6 +189,9 @@ func (q *taskQueue) claim(ctx context.Context, timeoutMs int) (*ClaimedTask, err
 	return &ClaimedTask{taskId, t.Name, t.Payload, t.TimeoutMs, t.Attempts, t.ClaimToken}, nil
 }
 
+// Allows a worker to complete a task. Moves a TaskMeta id from the
+// processing queue to a completed queue. It then updates TaskMeta properties
+// to show completed. Also increments the completedN property atomically.
 func (q *taskQueue) complete(ctx context.Context, task *ClaimedTask) (bool, error) {
 	// compare claim token in claimed task with claim token in redis
 	taskId := task.Id
@@ -195,6 +234,10 @@ func (q *taskQueue) complete(ctx context.Context, task *ClaimedTask) (bool, erro
 	return true, nil
 }
 
+// Allows a worker to fail a task. Moves a TaskMeta id from the processing
+// queue to a failed queue. If the task has not reached max attempts, it moves
+// the task back to pending instead. It then updates TaskMeta properties to
+// show failed or pending. Also increments the failedN property atomically.
 func (q *taskQueue) fail(ctx context.Context, task *ClaimedTask, errMsg error) (bool, error) {
 	// compare claim token in claimed task with claim token in redis
 	taskId := task.Id
@@ -250,8 +293,9 @@ func (q *taskQueue) fail(ctx context.Context, task *ClaimedTask, errMsg error) (
 	return true, nil
 }
 
-// go through processing list and find stuck jobs
-// if stuck, put back in pending
+// When a worker gets stuck (crashes between a BLMOVE and metadata write or
+// server crashes while processing), will move stuck tasks back to pending queue.
+// Also increments the reclaimedN property atomically.
 func (q *taskQueue) reclaimStuck(ctx context.Context) ([]string, error) {
 	processing, err := q.redis.LRange(ctx, q.processingKey, 0, -1).Result()
 	if err != nil {
@@ -299,16 +343,26 @@ func (q *taskQueue) reclaimStuck(ctx context.Context) ([]string, error) {
 }
 
 type queueStats struct {
-	EnqueuedTotal   int
-	CompletedTotal  int
-	FailedTotal     int
-	ReclaimedTotal  int
-	PendingDepth    int64
-	ProcessingDepth int64
-	CompletedDepth  int64
-	FailedDepth     int64
+	// Amount of tasks that have been enqueued
+	enqueuedTotal int
+	// Amount of tasks that have been completed
+	completedTotal int
+	// Amount of tasks that have been failed
+	failedTotal int
+	// Amount of tasks that have been reclaimed
+	reclaimedTotal int
+	// Depth of the pending queue
+	pendingDepth int64
+	// Depth of the processing queue
+	processingDepth int64
+	// Depth of the completed queue
+	completedDepth int64
+	// Depth of the failed queue
+	failedDepth int64
 }
 
+// Returns the stats associated with the queue such as the depth of all queues,
+// and the total of all task statuses.
 func (q *taskQueue) stats(ctx context.Context) (queueStats, error) {
 	pipe := q.redis.TxPipeline()
 	pendingCmd := pipe.LLen(ctx, q.pendingKey)
@@ -323,17 +377,18 @@ func (q *taskQueue) stats(ctx context.Context) (queueStats, error) {
 	defer q.statsMu.Unlock()
 
 	return queueStats{
-		EnqueuedTotal:   q.enqueuedN,
-		CompletedTotal:  q.completedN,
-		FailedTotal:     q.failedN,
-		ReclaimedTotal:  q.reclaimedN,
-		PendingDepth:    pendingCmd.Val(),
-		ProcessingDepth: processingCmd.Val(),
-		CompletedDepth:  completedCmd.Val(),
-		FailedDepth:     failedCmd.Val(),
+		enqueuedTotal:   q.enqueuedN,
+		completedTotal:  q.completedN,
+		failedTotal:     q.failedN,
+		reclaimedTotal:  q.reclaimedN,
+		pendingDepth:    pendingCmd.Val(),
+		processingDepth: processingCmd.Val(),
+		completedDepth:  completedCmd.Val(),
+		failedDepth:     failedCmd.Val(),
 	}, nil
 }
 
+// Resets the stats of the task queue back to 0.
 func (q *taskQueue) resetStats() {
 	q.statsMu.Lock()
 	defer q.statsMu.Unlock()
@@ -344,6 +399,8 @@ func (q *taskQueue) resetStats() {
 	q.reclaimedN = 0
 }
 
+// Purges all data from all the queues and TaskMeta hashes. Also resets
+// the task queue stats.
 func (q *taskQueue) purge(ctx context.Context) error {
 	pipe := q.redis.Pipeline()
 	pipe.Del(ctx, q.pendingKey, q.processingKey, q.completedKey, q.failedKey)
@@ -372,10 +429,13 @@ func (q *taskQueue) purge(ctx context.Context) error {
 	return nil
 }
 
+// Returns the current time in milliseconds.
 func nowMs() int64 {
 	return time.Now().UnixNano() / int64(time.Millisecond)
 }
 
+// Formats a task id into a task key for a redis hash key.
+// Example: 123456 -> queue:{queueName}:task:123456
 func (q *taskQueue) taskKey(taskId string) string {
 	return q.taskPrefix + taskId
 }

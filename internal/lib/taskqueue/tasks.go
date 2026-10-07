@@ -20,6 +20,15 @@ type TaskMeta struct {
 	LastErrorAtMs int64  `redis:"last_error_at_ms"`
 }
 
+type ClaimedTask struct {
+	Id         string
+	Name       string
+	Payload    string
+	TimeoutMs  int
+	Attempts   int
+	ClaimToken string
+}
+
 func NewTaskMeta(task Task) TaskMeta {
 	return TaskMeta{
 		Id:        uuid.New().String(),
