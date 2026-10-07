@@ -6,8 +6,8 @@ import (
 )
 
 type (
-	Handler             func(context.Context, *ClaimedTask) error
-	HandlerWithChannels func(context.Context, *ClaimedTask, chan error, chan struct{})
+	Handler             func(context.Context, *claimedTask) error
+	HandlerWithChannels func(context.Context, *claimedTask, chan error, chan struct{})
 )
 
 // multiplexer that maps task names to task handlers
@@ -37,7 +37,7 @@ func (m *ServeMux) getHandler(taskType string) (HandlerWithChannels, error) {
 }
 
 func handlerToHandlerWithChannels(handler Handler) HandlerWithChannels {
-	return func(ctx context.Context, t *ClaimedTask, errChan chan error, doneChan chan struct{}) {
+	return func(ctx context.Context, t *claimedTask, errChan chan error, doneChan chan struct{}) {
 		if err := handler(ctx, t); err != nil {
 			errChan <- err
 		} else {
