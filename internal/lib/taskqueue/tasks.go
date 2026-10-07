@@ -29,7 +29,7 @@ type ClaimedTask struct {
 	ClaimToken string
 }
 
-func NewTaskMeta(task Task) TaskMeta {
+func newTaskMeta(task Task) TaskMeta {
 	return TaskMeta{
 		Id:        uuid.New().String(),
 		Name:      task.Name,

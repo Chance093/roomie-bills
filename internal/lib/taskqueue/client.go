@@ -2,22 +2,40 @@ package taskqueue
 
 import "context"
 
-type Client struct {
+// Client handles the enqueueing of tasks, which will later be processed
+// by workers. Client is meant to be used as a producer of tasks (as
+// opposed to a broker or consumer).
+type client struct {
 	queue     *taskQueue
 	parentCtx context.Context
 }
 
-type ClientOpts struct {
-	TaskQueueOpts
+// Creates a new client which initializes a task queue. Use client.Enqueue()
+// to enqueue a task, which will be pulled off the queue by workers. If you
+// would like more fine control of how the queue works, try creating a
+// custom queue with NewTaskQueue(), and passing the returned queue to
+// NewClientWithCustomQueue().
+func NewClient(ctx context.Context) client {
+	queue := NewTaskQueue(TaskQueueOpts{}) // create default queue
+
+	return client{parentCtx: ctx, queue: queue}
 }
 
-func NewClient(ctx context.Context, opts ClientOpts) Client {
-	queue := newTaskQueue(opts.TaskQueueOpts)
+// Creates a new client with the custom queue that was passed in. To create
+// a custom queue, try using NewTaskQueue(). If no queue is passed in, will
+// initialize default queue. Use client.Enqueue() to enqueue a task, which
+// will be pulled off the queue by workers
+func NewClientWithCustomQueue(ctx context.Context, queue *taskQueue) client {
+	if queue == nil {
+		queue = NewTaskQueue(TaskQueueOpts{}) // create default queue
+	}
 
-	return Client{parentCtx: ctx, queue: queue}
+	return client{parentCtx: ctx, queue: queue}
 }
 
-func (c Client) Enqueue(task Task) (string, error) {
-	taskMeta := NewTaskMeta(task)
-	return c.queue.Enqueue(c.parentCtx, taskMeta)
+// Enqueues a task to be processed by a worker. To create a task, try
+// NewTask().
+func (c client) Enqueue(task Task) (string, error) {
+	taskMeta := newTaskMeta(task)
+	return c.queue.enqueue(c.parentCtx, taskMeta)
 }

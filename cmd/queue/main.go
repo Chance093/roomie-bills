@@ -28,7 +28,7 @@ func main() {
 	defer db.Close()
 
 	ctx := context.Background()
-	taskClient := taskqueue.NewClient(ctx, taskqueue.ClientOpts{})
+	taskClient := taskqueue.NewClient(ctx)
 
 	// config server and handlers
 	srv := taskqueue.NewServer(ctx, taskqueue.ServerOpts{})

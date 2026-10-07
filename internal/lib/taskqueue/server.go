@@ -9,7 +9,8 @@ import (
 )
 
 // server handles the initialization and orchestration of workers, queues,
-// and the processing of tasks. It is meant to be initialized and run in a
+// and the processing of tasks. It is meant to be used as a consumer (as
+// opposed to a producer or consumer). Initialized and run in a
 // process you intend to handle asynchronous tasks.
 type server struct {
 	pool      *WorkerPool
