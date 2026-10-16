@@ -64,7 +64,7 @@ func initDB() (*sql.DB, error) {
 		plaid_id TEXT NOT NULL UNIQUE,
 		payee TEXT NOT NULL,
 		date DATETIME NOT NULL,
-		total INTEGER NOT NULL,
+		total INTEGER NOT NULL, -- Stored in cents
 		account_id INTEGER NOT NULL,
 		created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL
