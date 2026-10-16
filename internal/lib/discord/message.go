@@ -7,6 +7,7 @@ import (
 	"github.com/Chance093/roomie-bills/internal/db"
 	"github.com/Chance093/roomie-bills/internal/lib/plaid"
 	"github.com/Chance093/roomie-bills/internal/types"
+	"github.com/Chance093/roomie-bills/internal/utils"
 )
 
 func (c *Client) SendHostedLink(roomie, hostedLink string) error {
@@ -37,8 +38,8 @@ func (c *Client) SendBills(bills []types.SplitBill) error {
 		fmt.Fprintf(&b, "#️⃣ Bill ID: %d\n", bill.Id) // first space is an emoji
 		fmt.Fprintf(&b, "📋 New Bill: %s\n", bill.Payee)
 		fmt.Fprintf(&b, "📅 Date: %s\n", bill.Date)
-		fmt.Fprintf(&b, "💰 Total: $%.2f\n", bill.Total)
-		fmt.Fprintf(&b, "👤 Each roommate owes %s: $%.2f\n", bill.Roomie, bill.Split)
+		fmt.Fprintf(&b, "💰 Total: $%.2f\n", utils.ConvertToDollars(bill.Total))
+		fmt.Fprintf(&b, "👤 Each roommate owes %s: $%.2f\n", bill.Roomie, utils.ConvertToDollars(bill.Split))
 		b.WriteString("\n")
 	}
 
@@ -67,10 +68,11 @@ func (c *Client) SendOutstandingBills(outstandingBills []db.OutstandingBill) err
 	b.WriteString("```")
 	b.WriteString("Outstanding Bills:\n\n")
 
+	// TODO: Show split and total here
 	for _, bill := range outstandingBills {
 		fmt.Fprintf(&b, "#️⃣ Bill ID: %d\n", bill.Id) // first space is an emoji
 		fmt.Fprintf(&b, "📋 Bill Name: %s\n", bill.Name)
-		fmt.Fprintf(&b, "💰 Total: $%.2f\n", bill.Amount)
+		fmt.Fprintf(&b, "💰 Total: $%.2f\n", utils.ConvertToDollars(bill.Amount))
 		b.WriteString("😠 ")
 
 		for i, payer := range bill.Payers {

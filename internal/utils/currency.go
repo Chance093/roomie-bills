@@ -4,8 +4,9 @@ import (
 	"math"
 )
 
-func SplitFourWay(amount float64) float64 {
-	return math.Round(amount/4*100) / 100
+// TODO: write tests
+func SplitFourWay(amount int) int {
+	return int(math.Round(float64(amount)/4*100) / 100)
 }
 
 // Assumes amount will never have more than 2 decimal places

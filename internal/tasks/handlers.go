@@ -358,7 +358,6 @@ func (h Handler) SetDiscordCommands(ctx context.Context, t *taskqueue.ClaimedTas
 	return nil
 }
 
-// TODO: use decimal package
 func splitBills(bills []db.Bill) []types.SplitBill {
 	splitBills := make([]types.SplitBill, len(bills))
 	for i, bill := range bills {

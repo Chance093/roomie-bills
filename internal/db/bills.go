@@ -16,7 +16,7 @@ type Bill struct {
 	Id     int64
 	Payee  string
 	Date   string
-	Total  float64
+	Total  int
 	Roomie string
 }
 
@@ -219,7 +219,7 @@ type OutstandingBill struct {
 	Id     int64
 	Name   string
 	Payee  string
-	Amount float64
+	Amount int
 	Payers []string
 }
 
@@ -227,7 +227,7 @@ type Payment struct {
 	Id     int64
 	Name   string
 	Payee  string
-	Amount float64
+	Amount int
 }
 
 func (db *DB) GetOutstandingBills() ([]OutstandingBill, error) {

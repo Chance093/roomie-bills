@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Chance093/roomie-bills/internal/lib/redis"
+	"github.com/Chance093/roomie-bills/internal/utils"
 	"github.com/plaid/plaid-go/v43/plaid"
 )
 
@@ -155,7 +156,7 @@ type Bill struct {
 	AccountId string
 	Payee     string
 	Date      string
-	Total     float64 // TODO: change to decimal package
+	Total     int
 }
 
 func (c Client) GetBills(ctx context.Context, accessTokens []string) ([]Bill, error) {
@@ -222,7 +223,7 @@ func (c Client) getBills(ctx context.Context, accessToken string, billChan chan<
 				AccountId: transaction.GetAccountId(),
 				Payee:     payee,
 				Date:      transaction.GetDate(),
-				Total:     total,
+				Total:     utils.ConvertToCents(total),
 			}
 		}
 	}
